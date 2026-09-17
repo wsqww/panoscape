@@ -3,6 +3,7 @@ import type { BaseLayerMode } from './scene';
 import { createScene, switchBaseLayer } from './scene';
 import { addLandmarkModels } from './landmarks';
 import { closePanoOverlay, isPanoOverlayOpen, openPanoOverlay } from './pano';
+import { BAIDU_MAP_AK } from './config';
 import type { Attraction, ScenicAreaMeta } from './types';
 import './base.css';
 import './tour.css';
@@ -148,7 +149,10 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
       <div class="psc-card-tip" hidden></div>
     </section>
     <div class="psc-bottom">
-      <button type="button" class="psc-overview">回到全景</button>
+      <div class="psc-bottom-actions">
+        <button type="button" class="psc-overview">回到全景</button>
+        ${BAIDU_MAP_AK ? '' : '<button type="button" class="psc-pano-entry" hidden>360° 全景</button>'}
+      </div>
       <span class="psc-hint">滚轮缩放 · 左键拖动平移 · 右键或 Ctrl＋左键拖动旋转俯仰</span>
     </div>
     <div class="psc-loader">
@@ -177,6 +181,17 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
   const lightboxEl = root.querySelector<HTMLElement>('.psc-lightbox')!;
   const lightboxImg = root.querySelector<HTMLImageElement>('.psc-lightbox-img')!;
   const lightboxCaption = root.querySelector<HTMLElement>('.psc-lightbox-caption')!;
+
+  /* 景点全景按钮仅在百度模式下展示；AK 留空时改由底部景区级入口提供 720 云漫游 */
+  panoBtnEl.hidden = !BAIDU_MAP_AK;
+  /* 景区级 720 云入口：配置了 pano720 时点亮底部「360° 全景」按钮 */
+  const panoEntryEl = root.querySelector<HTMLButtonElement>('.psc-pano-entry');
+  if (panoEntryEl && meta.pano720) {
+    panoEntryEl.hidden = false;
+    panoEntryEl.addEventListener('click', () => {
+      openPanoOverlay({ name: meta.name, lngLat: meta.center }, { pano720: meta.pano720 });
+    });
+  }
 
   const map = createScene({
     container: mapHost,
@@ -248,7 +263,7 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     cardPhotoEl.onclick = (): void => {
       if (attraction.photo) openLightbox(attraction);
     };
-    /* 进入该景点的 360° 实景全景：以当前地图朝向作为全景初始视角，保持观感连贯 */
+    /* 进入该景点的 360° 实景全景（仅百度模式展示按钮）：以当前地图朝向作为初始视角 */
     panoBtnEl.onclick = (): void => {
       openPanoOverlay(attraction, { heading: map.getBearing() });
     };

@@ -145,9 +145,10 @@ function ensureOverlay(): HTMLElement {
       <div class="psc-pano-ring"></div>
       <p class="psc-pano-msg"></p>
     </div>
-    <div class="psc-pano-caption"></div>
-    <div class="psc-pano-hint">拖动环视 · 滚轮缩放 · 点击地面箭头切换机位</div>
-    <button type="button" class="psc-pano-close" aria-label="关闭全景">✕</button>
+    <div class="psc-pano-top">
+      <div class="psc-pano-caption"></div>
+      <button type="button" class="psc-pano-close" aria-label="关闭全景">✕</button>
+    </div>
   `;
   el.querySelector('.psc-pano-close')!.addEventListener('click', () => closePanoOverlay());
   veilEl = el.querySelector('.psc-pano-veil')!;
@@ -194,18 +195,41 @@ function probePanorama(gl: any, point: any): Promise<string | null | undefined> 
   });
 }
 
+/** 在全景宿主中嵌入 720 云漫游 iframe；加载完成或超时后撤掉加载覆盖层 */
+function showPanoIframe(host: HTMLElement, url: string): void {
+  showVeil('loading', '正在加载全景…');
+  const iframe = document.createElement('iframe');
+  iframe.src = url;
+  iframe.className = 'psc-pano-iframe';
+  iframe.title = '720 云全景漫游';
+  iframe.allowFullscreen = true;
+  iframe.addEventListener('load', () => showVeil('hidden'), { once: true });
+  host.replaceChildren(iframe);
+  /* 跨域页面的 load 事件偶发不可靠，12 秒兜底撤掉加载态 */
+  window.setTimeout(() => {
+    if (host.contains(iframe)) showVeil('hidden');
+  }, 12000);
+}
+
 /**
  * 打开某景点的 360° 全景遮罩。
  * 参数 attraction：含 name（展示）与 lngLat（WGS-84，OSM 坐标）的景点对象；
- * 参数 opts.heading：初始朝向（度，北为 0 顺时针），通常传地图当前 bearing 实现视角联动。
+ * 参数 opts.heading：初始朝向（度，北为 0 顺时针），通常传地图当前 bearing 实现视角联动；
+ * 参数 opts.pano720：720 云漫游嵌入地址（景区级配置的备选内容源），仅在百度 AK 留空时启用。
  * 副作用：向 body 插入遮罩、按需注入百度脚本、创建/复用 BMapGL.Panorama 实例。
  */
 export async function openPanoOverlay(
   attraction: { name: string; lngLat: [number, number] },
-  opts: { heading?: number } = {},
+  opts: { heading?: number; pano720?: string } = {},
 ): Promise<void> {
   const el = ensureOverlay();
   el.classList.add('open');
+  /* AK 未配置时启用 720 云备选源；两者皆缺省则提示敬请期待 */
+  if (!BAIDU_MAP_AK && opts.pano720) {
+    if (captionEl) captionEl.textContent = `${attraction.name} · 全景来源：720云`;
+    showPanoIframe(document.getElementById(PANO_HOST_ID)!, opts.pano720);
+    return;
+  }
   if (captionEl) captionEl.textContent = `${attraction.name} · 全景来源：百度地图`;
   showVeil('loading', '正在加载全景…');
   try {

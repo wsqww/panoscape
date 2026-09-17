@@ -57,4 +57,10 @@ export interface ScenicAreaMeta {
   attractions: Attraction[];
   /** 精细地标模型（可选）：以白模风格渲染于 3D 建筑之上 */
   landmarks?: LandmarkModel[];
+  /**
+   * 720 云全景漫游嵌入地址（可选，景区级备选内容源）。
+   * BAIDU_MAP_AK 留空时：景点卡片不显示全景按钮，改为在底部操作区显示
+   * 景区级「360° 全景」入口（iframe 嵌入该漫游）。AK 有值时景点按钮接管，此字段停用。
+   */
+  pano720?: string;
 }

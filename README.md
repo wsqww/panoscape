@@ -69,11 +69,14 @@ npm run preview    # 本地预览构建产物
 
 ### 360° 全景配置
 
-「360° 全景」使用百度地图 JSAPI GL 全景组件（百度自有街景数据，免费开放）。未配置密钥时按钮保留，点击提示「敬请期待」：
+「360° 全景」按以下优先级取内容源：
 
-1. 在 [百度地图开放平台控制台](https://lbsyun.baidu.com) 注册并创建应用，类型选**浏览器端**，拿到 AK
-2. 应用设置的 Referer 白名单中加入：`panoscape.shuaiqiang.wang/*` 与 `localhost:5173/*`（本地开发）
-3. 填入 `src/common/config.ts` 的 `BAIDU_MAP_AK`，刷新页面即可
+1. **百度街景**（`BAIDU_MAP_AK` 有值）：每个景点卡片显示「360° 全景」按钮，按景点坐标就近取景。申请步骤：
+   - 在 [百度地图开放平台控制台](https://lbsyun.baidu.com) 注册并创建应用，类型选**浏览器端**，拿到 AK
+   - 应用设置的 Referer 白名单中加入：`panoscape.shuaiqiang.wang/*` 与 `localhost:5173/*`（本地开发）
+   - 填入 `src/common/config.ts` 的 `BAIDU_MAP_AK`，刷新页面即可
+2. **720 云漫游**（`BAIDU_MAP_AK` 留空时的备选源）：景点卡片不显示全景按钮，底部操作区出现景区级「360° 全景」入口（iframe 嵌入景区 `meta.ts` 中 `pano720` 配置的漫游）。挑选开启嵌入权限的公开漫游，复制分享链接填入即可；景区各自配置
+3. 两者皆缺省时，不展示任何全景入口
 
 景点坐标为 OSM 的 WGS-84，模块内已做标准 WGS-84 → BD-09 转换对齐百度坐标系；个别景点若百度无街景覆盖，会提示「暂无全景覆盖」。
 
@@ -137,7 +140,7 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 - 底图服务 [OpenFreeMap](https://openfreemap.org/)
 - 卫星影像 © Esri, Maxar, Earthstar Geographics（卫星模式，页面内展示）
 - 高程数据 © AWS Open Data（Mapzen Terrarium）
-- 360° 全景影像 © 百度地图（百度街景数据，经官方 JSAPI GL 全景组件调用，全景层内展示来源）
+- 360° 全景影像 © 百度地图（百度街景数据，经官方 JSAPI GL 全景组件调用，全景层内展示来源）；备选源 720 云全景漫游内容版权归原作品作者（`pano720` 配置处可注明）
 - 景点实景照片来自 [Wikimedia Commons](https://commons.wikimedia.org/)，各照片来源：
 
   | 景点 | Commons 文件 |

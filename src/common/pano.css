@@ -20,6 +20,16 @@
   inset: 0;
 }
 
+/* 720 云漫游嵌入页：铺满宿主 */
+.psc-pano-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
 /* 覆盖层：加载与提示态，盖在宿主之上（全景就绪后隐藏） */
 .psc-pano-veil {
   position: absolute;
@@ -67,11 +77,22 @@
   color: var(--psc-text-dim);
 }
 
-/* 左下角说明胶囊：景点名 + 数据来源署名 */
-.psc-pano-caption {
+/* 顶部组合条：说明与关闭钮整体居中，避让全景播放器的四角自带控件 */
+.psc-pano-top {
   position: absolute;
-  left: 20px;
-  bottom: 18px;
+  top: 14px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 说明胶囊（景点名 + 数据来源署名） */
+.psc-pano-caption {
   padding: 7px 16px;
   border-radius: 999px;
   background: rgba(12, 31, 28, 0.72);
@@ -81,31 +102,16 @@
   letter-spacing: 1px;
   color: rgba(159, 181, 173, 0.9);
   pointer-events: none;
-}
-
-/* 底部中央操作提示 */
-.psc-pano-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  padding: 7px 16px;
-  border-radius: 999px;
-  background: rgba(12, 31, 28, 0.72);
-  border: 1px solid var(--psc-panel-border);
-  backdrop-filter: blur(8px);
-  font-size: 12px;
-  letter-spacing: 1px;
-  color: var(--psc-text-dim);
-  pointer-events: none;
+  max-width: min(70vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 右上角关闭按钮：与灯箱关闭按钮同款 */
+/* 关闭按钮：与灯箱关闭按钮同款 */
 .psc-pano-close {
-  position: absolute;
-  top: 20px;
-  right: 24px;
+  flex: none;
+  pointer-events: auto;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -119,17 +125,4 @@
 
 .psc-pano-close:hover {
   background: rgba(12, 31, 28, 0.95);
-}
-
-/* 窄屏：隐藏操作提示，说明胶囊避让右侧关闭按钮 */
-@media (max-width: 860px) {
-  .psc-pano-hint {
-    display: none;
-  }
-
-  .psc-pano-caption {
-    max-width: calc(100vw - 76px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }

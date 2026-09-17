@@ -31,6 +31,9 @@ export const westlake: ScenicAreaMeta = {
   // 注意：开启 3D 地形后 maplibre 会在低缩放级别强制压平俯仰角，
   // 全景视角的 zoom 必须保持在 14 以上才能看到透视与旋转效果
   overview: { zoom: 14, pitch: 55, bearing: -20 },
+  // 720 云景区级备选全景源（湖中区域航拍漫游，可内部切换场景）：
+  // 百度全景 AK 留空时展示为底部「360° 全景」入口，AK 填入后自动停用
+  pano720: 'https://www.720yun.com/t/9be2fmz6cbr',
   // 精细地标模型：程序化白模（坐标与对应景点锚点一致）
   landmarks: [
     // 雷峰塔 OSM 实测高 72m，放大 1.3 倍使程序化模型与真实体量一致

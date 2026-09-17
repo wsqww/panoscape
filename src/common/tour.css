@@ -417,7 +417,8 @@
   gap: 8px;
 }
 
-.psc-overview {
+.psc-overview,
+.psc-pano-entry {
   padding: 9px 22px;
   border-radius: 999px;
   border: 1px solid rgba(216, 181, 106, 0.45);
@@ -429,9 +430,16 @@
   transition: background 0.18s, color 0.18s;
 }
 
-.psc-overview:hover {
+.psc-overview:hover,
+.psc-pano-entry:hover {
   background: var(--psc-accent);
   color: #241c0b;
+}
+
+/* 底部按钮组：回到全景 + 景区级 360° 全景入口横排 */
+.psc-bottom-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .psc-hint {

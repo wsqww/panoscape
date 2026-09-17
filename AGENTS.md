@@ -38,7 +38,7 @@ npm run preview    # 本地预览 dist 产物
   3. 在 `src/common/registry.ts` 的 `scenicAreas` 数组追加该 meta
 - **相机参数只在 load 事件里应用一次**（`scene.ts` 中有幂等守卫）：构造器传入的 pitch/bearing 会被丢弃，禁止把 jumpTo 移出 load
 - **版权控件**：`attributionControl: false`（入口页预览）或 maplibre 默认控件（游览页），不要引入自定义版权面板组件（已试过并回退，见「已知坑」）
-- **360° 全景模块**：`src/common/pano.ts` + `pano.css`，入口为 `openPanoOverlay(attraction, { heading })` / `closePanoOverlay()` / `isPanoOverlayOpen()`；遮罩 DOM 由模块自管（懒创建挂 body，z-index 70），tour.ts 只负责卡片按钮与 ESC 链路。百度脚本按需 JSONP 注入且单例缓存；景点 WGS-84 坐标在模块内做标准算法转换为 BD-09；AK 为空/脚本失败/无覆盖各有降级提示文案。修改关闭逻辑时必须同步隐藏 `.psc-pano-veil`（见已知坑 6）
+- **360° 全景模块**：`src/common/pano.ts` + `pano.css`，入口为 `openPanoOverlay(attraction, { heading, pano720 })` / `closePanoOverlay()` / `isPanoOverlayOpen()`；遮罩 DOM 由模块自管（懒创建挂 body，z-index 70），顶部为「说明胶囊 + 关闭钮」居中组合条。内容源优先级：百度 AK 有值 → 每个景点卡片显示全景按钮（`BMapGL.Panorama` 按需 JSONP 注入且单例缓存，坐标在模块内 WGS-84→BD-09）；AK 留空 → 景点按钮全部隐藏，底部操作区显示景区级「360° 全景」入口（iframe 嵌入景区级 `meta.pano720`，入口仅在配置了该字段时点亮）；皆缺省则无任何入口。修改关闭逻辑时必须同步隐藏 `.psc-pano-veil`（见已知坑 6）
 - **调试钩子**：`window.__pscMap`（地图实例）与 `window.__pscLandmarks`（three.js 场景，见 `landmarks.ts`）暴露到 window，供控制台/自动化检查
 
 ## 地图与 3D 已知坑（重要）
@@ -56,7 +56,7 @@ npm run preview    # 本地预览 dist 产物
 
 - 用户本机装有 Clash 代理：**浏览器经系统代理请求，终端 curl 直连，两者结果可能相反**。排查「浏览器加载外部资源失败但 curl 正常」时先确认代理
 - Esri 卫星瓦片（server.arcgisonline.com）在用户开启 Clash 时不可达，关闭代理或加直连规则即可；天地图 key 配置见 `src/common/config.ts`
-- 百度全景脚本（api.map.baidu.com）国内直连稳定；AK 为空时点击「360° 全景」提示「敬请期待」，不发起脚本请求。AK 申请步骤见 README「360° 全景配置」
+- 百度全景脚本（api.map.baidu.com）国内直连稳定；AK 为空时不发起脚本请求，全景入口切换为底部景区级「360° 全景」（720 云）。AK 申请步骤见 README「360° 全景配置」
 - 景点照片已下载自托管于 `src/assets/photos/`，运行时不依赖 Wikimedia
 
 ## 资产约定
