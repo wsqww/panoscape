@@ -51,7 +51,7 @@ npm run preview    # 本地预览构建产物
 
 ### 部署到 GitHub Pages
 
-仓库内置 GitHub Actions 工作流（`.github/workflows/deploy-pages.yml`）：推送 `main` 分支后自动构建并将 `dist/` 发布到 Pages，站点地址为 `https://<用户名>.github.io/panoscape/`。
+仓库内置 GitHub Actions 工作流（`.github/workflows/deploy-pages.yml`）：推送 `main` 分支后自动构建并将 `dist/` 发布到 Pages，线上站点 `https://panoscape.shuaiqiang.wang/`（自定义域名，在仓库 Pages 设置中绑定）。
 
 首次启用只需一步：仓库 **Settings → Pages → Build and deployment → Source 选择「GitHub Actions」**，之后每次推送自动部署（也可在 Actions 页面手动触发 `workflow_dispatch`）。
 

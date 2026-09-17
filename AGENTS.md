@@ -61,7 +61,7 @@ npm run preview    # 本地预览 dist 产物
 
 ## 部署流程
 
-- GitHub Pages 通过 `.github/workflows/deploy-pages.yml` 自动部署：推送 `main` 分支触发构建并发布 `dist/`，站点地址 `https://<用户名>.github.io/panoscape/`
+- GitHub Pages 通过 `.github/workflows/deploy-pages.yml` 自动部署：推送 `main` 分支触发构建并发布 `dist/`，线上站点 `https://panoscape.shuaiqiang.wang/`（自定义域名，仓库 Pages 设置中绑定）
 - 首次启用需在仓库 Settings → Pages 将 Source 设为「GitHub Actions」（workflow 中的 `enablement: true` 通常会自动完成）
 - 修改构建产物结构（如 `base`、输出目录）或工作流文件后，需同步更新本节与 README 部署说明
 
