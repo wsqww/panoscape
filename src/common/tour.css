@@ -374,6 +374,25 @@
   color: var(--psc-text);
 }
 
+/* 360° 全景入口按钮：金胶囊，与底部「回到全景」风格一致 */
+.psc-card-pano {
+  margin-top: 14px;
+  width: 100%;
+  padding: 9px 0;
+  border-radius: 999px;
+  border: 1px solid rgba(216, 181, 106, 0.45);
+  background: rgba(12, 31, 28, 0.85);
+  color: var(--psc-accent);
+  font-size: 13px;
+  letter-spacing: 2px;
+  transition: background 0.18s, color 0.18s;
+}
+
+.psc-card-pano:hover {
+  background: var(--psc-accent);
+  color: #241c0b;
+}
+
 .psc-card-tip {
   margin: 12px 0 0;
   padding: 10px 12px;

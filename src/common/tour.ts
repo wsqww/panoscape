@@ -2,6 +2,7 @@ import maplibregl from 'maplibre-gl';
 import type { BaseLayerMode } from './scene';
 import { createScene, switchBaseLayer } from './scene';
 import { addLandmarkModels } from './landmarks';
+import { closePanoOverlay, isPanoOverlayOpen, openPanoOverlay } from './pano';
 import type { Attraction, ScenicAreaMeta } from './types';
 import './base.css';
 import './tour.css';
@@ -143,6 +144,7 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
       <span class="psc-card-group"></span>
       <h2 class="psc-card-name"></h2>
       <p class="psc-card-summary"></p>
+      <button type="button" class="psc-card-pano">360° 全景</button>
       <div class="psc-card-tip" hidden></div>
     </section>
     <div class="psc-bottom">
@@ -167,6 +169,7 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
   const cardGroupEl = root.querySelector<HTMLElement>('.psc-card-group')!;
   const cardNameEl = root.querySelector<HTMLElement>('.psc-card-name')!;
   const cardSummaryEl = root.querySelector<HTMLElement>('.psc-card-summary')!;
+  const panoBtnEl = root.querySelector<HTMLButtonElement>('.psc-card-pano')!;
   const cardTipEl = root.querySelector<HTMLElement>('.psc-card-tip')!;
   const listEl = root.querySelector<HTMLDivElement>('.psc-sidebar-list')!;
   const sidebarEl = root.querySelector<HTMLElement>('.psc-sidebar')!;
@@ -244,6 +247,10 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     cardSummaryEl.textContent = attraction.summary;
     cardPhotoEl.onclick = (): void => {
       if (attraction.photo) openLightbox(attraction);
+    };
+    /* 进入该景点的 360° 实景全景：以当前地图朝向作为全景初始视角，保持观感连贯 */
+    panoBtnEl.onclick = (): void => {
+      openPanoOverlay(attraction, { heading: map.getBearing() });
     };
     if (attraction.tip) {
       cardTipEl.textContent = `贴士 · ${attraction.tip}`;
@@ -338,9 +345,13 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     lightboxEl.classList.remove('open');
   }
 
-  /* ESC 优先关闭大图灯箱，其次关闭景点卡片；点击遮罩同样关闭 */
+  /* ESC 依次关闭：全景 → 大图灯箱 → 景点卡片；点击遮罩同样关闭灯箱 */
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (isPanoOverlayOpen()) {
+      closePanoOverlay();
+      return;
+    }
     if (lightboxEl.classList.contains('open')) {
       closeLightbox();
       return;

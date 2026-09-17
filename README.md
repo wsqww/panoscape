@@ -14,6 +14,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 - **地标白模**：雷峰塔、保俶塔、城隍阁、湖心亭以程序化生成的三层白模精细呈现（three.js 自定义图层），支持以 GLB 模型替换
 - **图层切换**：右上角「卫星 / 标准」单按钮一键切换底图；卫星源默认 Esri，可配置为国内直连的天地图（见下）
 - **景点导览**：地图编号标记 + 侧栏分组列表，点击任一景点自动飞行至最佳视角；介绍卡片带实景照片，点击照片可大图预览
+- **360° 实景全景**：景点卡片一键进入该位置的百度街景全景（按坐标就近取景，初始朝向与地图视角联动），全屏拖拽环视、滚轮缩放、地面箭头切换机位
 
 ## 当前状态
 
@@ -22,6 +23,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 - [x] 首个景区：西湖（16 处景点，坐标经 Overpass API 逐一核对）
 - [x] 地标白模模型（three.js 程序化生成，支持 GLB 替换）
 - [x] 底图图层切换（标准 / 卫星）
+- [x] 景点 360° 实景全景（百度街景，需免费 AK，见下）
 - [ ] 更多景区陆续接入
 
 ## 技术栈
@@ -35,6 +37,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 | 3D 建筑 | OSM `render_height` | 矢量瓦片内置真实建筑高度，按实际比例挤出 |
 | 3D 地形 | AWS Open Data（Terrarium DEM） | 免费全球高程瓦片，失败时自动降级为平面 |
 | 景点照片 | Wikimedia Commons | 免费图库，已下载至本地自托管 |
+| 360° 全景 | 百度地图 JSAPI GL 全景组件 | 免费浏览器端 AK，按景点坐标就近匹配街景机位 |
 | 构建 | Vite + TypeScript | 多页应用（MPA），产物为纯静态文件 |
 | 部署 | 静态托管 | GitHub Pages / Vercel 均可（`base: './'`） |
 
@@ -64,6 +67,16 @@ npm run preview    # 本地预览构建产物
 
 天地图影像为 CGCS2000 坐标系，与 OSM 数据一致、无偏移。
 
+### 360° 全景配置
+
+「360° 全景」使用百度地图 JSAPI GL 全景组件（百度自有街景数据，免费开放）。未配置密钥时按钮保留，点击提示「敬请期待」：
+
+1. 在 [百度地图开放平台控制台](https://lbsyun.baidu.com) 注册并创建应用，类型选**浏览器端**，拿到 AK
+2. 应用设置的 Referer 白名单中加入：`panoscape.shuaiqiang.wang/*` 与 `localhost:5173/*`（本地开发）
+3. 填入 `src/common/config.ts` 的 `BAIDU_MAP_AK`，刷新页面即可
+
+景点坐标为 OSM 的 WGS-84，模块内已做标准 WGS-84 → BD-09 转换对齐百度坐标系；个别景点若百度无街景覆盖，会提示「暂无全景覆盖」。
+
 ## 目录结构
 
 ```
@@ -76,10 +89,11 @@ panoscape/
 │   ├── common/
 │   │   ├── types.ts            # ScenicAreaMeta / Attraction / LandmarkModel 类型
 │   │   ├── registry.ts         # 景区注册表（扩展点）
-│   │   ├── config.ts           # 可配置项（天地图 key 等）
+│   │   ├── config.ts           # 可配置项（天地图 key、百度地图 AK 等）
 │   │   ├── scene.ts            # 地图场景工厂：底图/3D 建筑/3D 地形/天空/版权控件
 │   │   ├── landmarks.ts        # 地标白模：three.js 自定义图层 + 程序化生成器 + GLB 通道
 │   │   ├── tour.ts             # 游览页通用界面：标记/侧栏/飞行/卡片/灯箱/图层切换
+│   │   ├── pano.ts / pano.css  # 360° 全景：百度 JSAPI GL 按需加载、坐标转换、全屏遮罩
 │   │   └── base.css / tour.css
 │   ├── pages/
 │   │   └── home.ts / home.css  # 入口页逻辑与样式
@@ -123,6 +137,7 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 - 底图服务 [OpenFreeMap](https://openfreemap.org/)
 - 卫星影像 © Esri, Maxar, Earthstar Geographics（卫星模式，页面内展示）
 - 高程数据 © AWS Open Data（Mapzen Terrarium）
+- 360° 全景影像 © 百度地图（百度街景数据，经官方 JSAPI GL 全景组件调用，全景层内展示来源）
 - 景点实景照片来自 [Wikimedia Commons](https://commons.wikimedia.org/)，各照片来源：
 
   | 景点 | Commons 文件 |

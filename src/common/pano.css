@@ -1,0 +1,135 @@
+/* ===== 360° 全景遮罩：全屏沉浸 + 加载/提示覆盖层 ===== */
+.psc-pano {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: var(--psc-ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.psc-pano.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 百度全景宿主：铺满遮罩底层 */
+.psc-pano-host {
+  position: absolute;
+  inset: 0;
+}
+
+/* 覆盖层：加载与提示态，盖在宿主之上（全景就绪后隐藏） */
+.psc-pano-veil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background:
+    radial-gradient(1200px 500px at 50% 0%, rgba(79, 163, 135, 0.14), transparent 70%),
+    var(--psc-ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.psc-pano-veil.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.psc-pano-ring {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(216, 181, 106, 0.25);
+  border-top-color: var(--psc-accent);
+  animation: psc-pano-spin 0.9s linear infinite;
+}
+
+@keyframes psc-pano-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.psc-pano-msg {
+  margin: 0;
+  padding: 0 24px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  line-height: 1.8;
+  text-align: center;
+  color: var(--psc-text-dim);
+}
+
+/* 左下角说明胶囊：景点名 + 数据来源署名 */
+.psc-pano-caption {
+  position: absolute;
+  left: 20px;
+  bottom: 18px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(12, 31, 28, 0.72);
+  border: 1px solid var(--psc-panel-border);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: rgba(159, 181, 173, 0.9);
+  pointer-events: none;
+}
+
+/* 底部中央操作提示 */
+.psc-pano-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(12, 31, 28, 0.72);
+  border: 1px solid var(--psc-panel-border);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--psc-text-dim);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* 右上角关闭按钮：与灯箱关闭按钮同款 */
+.psc-pano-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(12, 31, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.psc-pano-close:hover {
+  background: rgba(12, 31, 28, 0.95);
+}
+
+/* 窄屏：隐藏操作提示，说明胶囊避让右侧关闭按钮 */
+@media (max-width: 860px) {
+  .psc-pano-hint {
+    display: none;
+  }
+
+  .psc-pano-caption {
+    max-width: calc(100vw - 76px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
