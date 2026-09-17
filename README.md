@@ -49,6 +49,12 @@ npm run preview    # 本地预览构建产物
 
 页面需联网加载地图瓦片；建议使用最新版 Chrome / Edge / Safari。
 
+### 部署到 GitHub Pages
+
+仓库内置 GitHub Actions 工作流（`.github/workflows/deploy-pages.yml`）：推送 `main` 分支后自动构建并将 `dist/` 发布到 Pages，站点地址为 `https://<用户名>.github.io/panoscape/`。
+
+首次启用只需一步：仓库 **Settings → Pages → Build and deployment → Source 选择「GitHub Actions」**，之后每次推送自动部署（也可在 Actions 页面手动触发 `workflow_dispatch`）。
+
 ### 卫星图层源配置
 
 「卫星」图层默认使用 Esri World Imagery（免费无 key）。若你的网络环境无法访问 `server.arcgisonline.com`（典型现象：代理软件将该域名路由到了被拒绝的出口节点），可改用国内直连的**天地图**：
