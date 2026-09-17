@@ -6,7 +6,7 @@
 ## 项目概述
 
 Panoscape（中文「境游」）：基于 MapLibre 3D 地图的可交互式景区游览演示（个人作品集）。
-多景区架构：入口页选择景区 → 进入对应景区的 3D 全景游览页。当前已接入：西湖。
+多景区架构：入口页选择景区 → 进入对应景区的 3D 全景游览页，景点卡片可进入百度街景 360° 实景全景。当前已接入：西湖。
 
 ## 常用命令
 
@@ -27,6 +27,7 @@ npm run preview    # 本地预览 dist 产物
 | maplibre-gl | ^5.24 | v5.24 的 render 第二参数为 `CustomRenderMethodInput`，取 `args.defaultProjectionData.mainMatrix` 作为墨卡托 MVP |
 | three | ^0.186 | 地标白模自定义图层 |
 | vite / typescript | ^6 / ^5 | 多页应用（MPA），产物 `base: './'` |
+| 百度地图 JSAPI GL | 运行时 CDN 注入（非 npm 依赖） | 360° 全景组件（`pano.ts`），需浏览器端 AK（`config.ts` 的 `BAIDU_MAP_AK`） |
 
 ## 架构约定
 
@@ -37,6 +38,7 @@ npm run preview    # 本地预览 dist 产物
   3. 在 `src/common/registry.ts` 的 `scenicAreas` 数组追加该 meta
 - **相机参数只在 load 事件里应用一次**（`scene.ts` 中有幂等守卫）：构造器传入的 pitch/bearing 会被丢弃，禁止把 jumpTo 移出 load
 - **版权控件**：`attributionControl: false`（入口页预览）或 maplibre 默认控件（游览页），不要引入自定义版权面板组件（已试过并回退，见「已知坑」）
+- **360° 全景模块**：`src/common/pano.ts` + `pano.css`，入口为 `openPanoOverlay(attraction, { heading })` / `closePanoOverlay()` / `isPanoOverlayOpen()`；遮罩 DOM 由模块自管（懒创建挂 body，z-index 70），tour.ts 只负责卡片按钮与 ESC 链路。百度脚本按需 JSONP 注入且单例缓存；景点 WGS-84 坐标在模块内做标准算法转换为 BD-09；AK 为空/脚本失败/无覆盖各有降级提示文案。修改关闭逻辑时必须同步隐藏 `.psc-pano-veil`（见已知坑 6）
 - **调试钩子**：`window.__pscMap`（地图实例）与 `window.__pscLandmarks`（three.js 场景，见 `landmarks.ts`）暴露到 window，供控制台/自动化检查
 
 ## 地图与 3D 已知坑（重要）
@@ -46,11 +48,15 @@ npm run preview    # 本地预览 dist 产物
 3. **POI 图标缺失告警**：OpenFreeMap 的 Liberty 样式引用了一批其 sprite 中不存在的 POI 图标，已通过 `styleimagemissing` 事件补透明占位消除（`scene.ts`）
 4. **原生挤出图层**：Liberty 样式自带 `building-3d`（minzoom 14，表达式对缺失字段抛空值警告），已在 `style.load` 时隐藏，建筑渲染统一由本项目的 `panoscape-buildings-3d` 图层负责（minzoom 11，白模配色，coalesce 保护）
 5. **地标模型**：`landmarks.ts` 中场景局部空间为 X 东 / Y 北 / Z 上（米制）；投影矩阵必须用 `args.defaultProjectionData.mainMatrix`（不是 `modelViewProjectionMatrix`）；材质需 `DoubleSide`（局部坐标带镜像，单面渲染会被背面剔除剔除全部三角形）；地标保护圈内的原生建筑挤出体按要素 id 排除（`querySourceFeatures` 收集 id，`within` 表达式方案不可靠已弃用）
+6. **全景 veil 拦截点击**：`.psc-pano-veil` 的 `.visible` 态是 `pointer-events: auto` 的全屏层，且 Playwright/浏览器对「可见」的判定不看 opacity——关闭全景遮罩时若不移除 veil 的 `visible` 类，透明遮罩下 veil 仍会拦截整个页面的点击。`closePanoOverlay()` 中的 `showVeil('hidden')` 不可删
+7. **百度坐标系**：百度 API 一律 BD-09，与 OSM 的 WGS-84 差数百米，直接传坐标会匹配到错误街景机位；转换用 `pano.ts` 内置的标准算法链（WGS-84 → GCJ-02 → BD-09），勿省略任一段
+8. **setStyle 移除自定义图层**：底图切换（`switchBaseLayer` 的 `setStyle`）会把地标 three.js 自定义图层一并移除，切换后若不重挂，雷峰塔等模型永久消失（`applySceneLayers` 只负责建筑/地形/天空）。`landmarks.ts` 已通过持久 `style.load` 监听自动重挂（`attachLayer` 幂等 + `onAdd` 幂等守卫复用 renderer/scene）；改动挂载逻辑时必须保持这套幂等性，勿在 `onAdd` 里重复初始化。**行为约定**：卫星影像底图上不渲染地标白模（`attachLayer` 按样式是否含 vector 源切换图层 visibility，与建筑挤出图层「无矢量源即不挂」保持一致）
 
 ## 网络环境注意
 
 - 用户本机装有 Clash 代理：**浏览器经系统代理请求，终端 curl 直连，两者结果可能相反**。排查「浏览器加载外部资源失败但 curl 正常」时先确认代理
 - Esri 卫星瓦片（server.arcgisonline.com）在用户开启 Clash 时不可达，关闭代理或加直连规则即可；天地图 key 配置见 `src/common/config.ts`
+- 百度全景脚本（api.map.baidu.com）国内直连稳定；AK 为空时点击「360° 全景」提示「敬请期待」，不发起脚本请求。AK 申请步骤见 README「360° 全景配置」
 - 景点照片已下载自托管于 `src/assets/photos/`，运行时不依赖 Wikimedia
 
 ## 资产约定

@@ -216,6 +216,9 @@ export function addLandmarkModels(map: maplibregl.Map, specs: LandmarkModel[]): 
     type: 'custom',
     renderingMode: '3d',
     onAdd(map, gl) {
+      // 底图切换（setStyle）会把自定义图层一并移除后再重挂：
+      // 此时场景/渲染器/模型均已就绪，直接复用；重复初始化会泄漏 renderer 并堆积事件监听
+      if (renderer && scene && camera) return;
       camera = new THREE.Camera();
       scene = new THREE.Scene();
       scene.add(new THREE.AmbientLight(0xffffff, 1.05));
@@ -274,10 +277,23 @@ export function addLandmarkModels(map: maplibregl.Map, specs: LandmarkModel[]): 
       map.triggerRepaint();
     },
   };
+  /** 幂等挂载地标图层：图层已存在时跳过，避免重复 addLayer 抛错 */
+  function attachLayer(): void {
+    if (!map.getLayer(LANDMARK_LAYER_ID)) map.addLayer(layer);
+    // 卫星影像底图上不渲染白模（与建筑挤出图层「无矢量源即不挂」的行为一致）：
+    // 样式含 vector 源即为标准图，否则按纯影像处理
+    const hasVectorBase = Object.values(map.getStyle().sources ?? {}).some((s) => s.type === 'vector');
+    map.setLayoutProperty(LANDMARK_LAYER_ID, 'visibility', hasVectorBase ? 'visible' : 'none');
+  }
+
+  // setStyle 会移除包括本图层在内的所有自定义图层：
+  // 监听 style.load 在新样式上自动重挂（renderer/scene 复用，GLB 无需重载）
+  map.on('style.load', attachLayer);
+
   // 样式未就绪时 addLayer 会抛错，统一推迟到 load 事件后再挂载自定义图层
   if (map.isStyleLoaded()) {
-    map.addLayer(layer);
+    attachLayer();
   } else {
-    map.once('load', () => map.addLayer(layer));
+    map.once('load', attachLayer);
   }
 }
