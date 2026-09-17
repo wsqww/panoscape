@@ -1,0 +1,210 @@
+/* ===== 入口页整体布局 ===== */
+.psc-home {
+  position: relative;
+  min-height: 100%;
+  overflow-x: hidden;
+  background:
+    radial-gradient(1100px 480px at 50% -8%, rgba(79, 163, 135, 0.22), transparent 70%),
+    radial-gradient(900px 420px at 88% 12%, rgba(216, 181, 106, 0.08), transparent 70%),
+    var(--psc-ink);
+}
+
+/* 底部装饰山影 */
+.psc-home::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34vh;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: 100% auto;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='xMidYMax slice'%3E%3Cpath d='M0 224 L180 120 L320 210 L520 60 L700 200 L900 90 L1080 220 L1260 140 L1440 230 L1440 320 L0 320 Z' fill='%23123029'/%3E%3Cpath d='M0 268 L220 180 L420 260 L640 150 L860 256 L1100 176 L1320 262 L1440 216 L1440 320 L0 320 Z' fill='%231a4038'/%3E%3C/svg%3E");
+}
+
+.psc-home-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 72px 24px 48px;
+}
+
+/* ===== 品牌区 ===== */
+.psc-home-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.psc-home-cn {
+  font-family: var(--psc-font-serif);
+  font-size: 40px;
+  letter-spacing: 12px;
+  color: var(--psc-text);
+}
+
+.psc-home-en {
+  font-size: 12px;
+  letter-spacing: 7px;
+  color: var(--psc-accent);
+}
+
+.psc-home-slogan {
+  margin: 14px 0 6px;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--psc-text-dim);
+}
+
+.psc-home-title {
+  margin: 0 0 40px;
+  font-family: var(--psc-font-serif);
+  font-weight: 400;
+  font-size: 26px;
+  letter-spacing: 4px;
+}
+
+/* ===== 景区卡片网格 ===== */
+.psc-home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 22px;
+}
+
+.psc-scenic-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  border: 1px solid var(--psc-panel-border);
+  background: var(--psc-panel);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.psc-scenic-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(216, 181, 106, 0.5);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+}
+
+.psc-card-preview {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: #10231f;
+}
+
+.psc-card-preview canvas {
+  outline: none;
+}
+
+
+.psc-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px 18px;
+}
+
+.psc-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.psc-card-head h2 {
+  margin: 0;
+  font-family: var(--psc-font-serif);
+  font-size: 22px;
+  letter-spacing: 4px;
+}
+
+.psc-card-sub {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--psc-text-dim);
+}
+
+.psc-card-desc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--psc-text-dim);
+}
+
+.psc-card-cta {
+  margin-top: 6px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--psc-accent);
+}
+
+.psc-card-cta::after {
+  content: "→";
+  display: inline-block;
+  margin-left: 8px;
+  transition: transform 0.2s ease;
+}
+
+.psc-scenic-card:hover .psc-card-cta::after {
+  transform: translateX(5px);
+}
+
+/* 未开放景区占位卡 */
+.psc-upcoming {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.02);
+  pointer-events: none;
+}
+
+.psc-upcoming .psc-card-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.psc-upcoming-ghost {
+  font-family: var(--psc-font-serif);
+  font-size: 20px;
+  letter-spacing: 8px;
+  color: rgba(233, 239, 236, 0.22);
+}
+
+.psc-upcoming .psc-card-head h2 {
+  color: rgba(233, 239, 236, 0.45);
+}
+
+.psc-upcoming .psc-card-desc {
+  color: rgba(159, 181, 173, 0.55);
+}
+
+/* ===== 页脚署名 ===== */
+.psc-home-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 56px;
+  padding: 18px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  letter-spacing: 1px;
+  line-height: 2;
+  color: rgba(159, 181, 173, 0.75);
+}
+
+@media (max-width: 640px) {
+  .psc-home-inner {
+    padding-top: 52px;
+  }
+
+  .psc-home-cn {
+    font-size: 30px;
+    letter-spacing: 8px;
+  }
+}

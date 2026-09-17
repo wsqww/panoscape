@@ -1,0 +1,29 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# AI 智能体生成的目录与文件
+.zcode/
+.claude/
+.cursor/
+.codex/
+.aider*
+.continue/
+.windsurf/
+
+# 编辑器本地历史
+.history/
+
+# 环境变量与本地配置
+.env
+.env.*
+*.local
+
+# 日志
+*.log
+npm-debug.log*
+
+# 编辑器与系统文件
+.idea/
+.vscode/
+.DS_Store
