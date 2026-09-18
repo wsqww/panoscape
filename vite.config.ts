@@ -17,6 +17,11 @@ function scenicInputs(): Record<string, string> {
 export default defineConfig({
   // 相对路径产物，便于 GitHub Pages / Vercel 等静态托管直接部署
   base: './',
+  // maplibre-gl v6 的 worker 为独立 module worker 文件，经 ?worker&url 交由 vite
+  // 打包为自包含 chunk（含其 shared 依赖），必须用 es 格式与 { type: 'module' } 加载匹配
+  worker: {
+    format: 'es',
+  },
   build: {
     rollupOptions: {
       input: {

@@ -1,7 +1,12 @@
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+// maplibre-gl v6 的 worker 为独立文件，vite 打包无法保留其 import.meta.url 相对引用，
+// 经 ?worker&url 交由 vite 打包为自包含 chunk 后显式指定地址（须在创建任何 Map 前设置）
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { StyleSpecification } from 'maplibre-gl';
 import { TIANDITU_KEY } from './config';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 /** OpenFreeMap 公共瓦片样式：免费、无需 API key，基于 OSM 真实数据 */
 const OPEN_FREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
@@ -221,10 +226,10 @@ export function createScene(options: SceneOptions): maplibregl.Map {
   // 暴露地图实例，便于控制台调试与自动化测试
   (window as unknown as Record<string, unknown>).__pscMap = map;
   map.on('error', (event) => console.error('[panoscape] 地图错误:', event.error));
-  // OpenFreeMap 样式引用的部分 POI 小图标在其图标集中缺失，用透明占位补齐以消除告警
-  map.on('styleimagemissing', (event) => {
-    if (map.hasImage(event.id)) return;
-    map.addImage(event.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
+  // OpenFreeMap 样式引用的部分 POI 小图标在其图标集中缺失，用透明占位补齐以消除告警。
+  // v6 起 styleimagemissing 仅通知、不再支持回调内补图，改用 setMissingStyleImageResolver（Map 级设置，setStyle 不清除）
+  map.setMissingStyleImageResolver((id) => {
+    if (!map.hasImage(id)) map.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
   });
   // 场景图层与相机只应用一次：'load' 在部分场景下可能重复触发，
   // 相机复位若再次执行会打断用户的飞行/浏览状态

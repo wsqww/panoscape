@@ -30,7 +30,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 
 | 层 | 技术 | 说明 |
 |---|---|---|
-| 3D 渲染 | MapLibre GL JS 5.24 | 开源地图引擎：滚轮缩放、拖拽旋转俯仰、flyTo 飞行动画、3D 地形 |
+| 3D 渲染 | MapLibre GL JS 6.10 | 开源地图引擎：滚轮缩放、拖拽旋转俯仰、flyTo 飞行动画、3D 地形 |
 | 地标模型 | three.js 0.186 + 自定义图层 | 程序化白模生成，支持 GLB 替换通道 |
 | 底图 | OpenFreeMap（Liberty 样式） | 免费、无 API key、无请求数限制，OSM 真实数据 |
 | 卫星影像 | Esri World Imagery | 免费，可配置为天地图（需免费 key） |

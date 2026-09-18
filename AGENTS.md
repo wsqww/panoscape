@@ -24,7 +24,7 @@ npm run preview    # 本地预览 dist 产物
 
 | 依赖 | 版本约束 | 原因 |
 |---|---|---|
-| maplibre-gl | ^5.24 | v5.24 的 render 第二参数为 `CustomRenderMethodInput`，取 `args.defaultProjectionData.mainMatrix` 作为墨卡托 MVP |
+| maplibre-gl | ^6.10 | v6 起为 ESM-only：`import * as maplibregl`（无默认导出）；自定义图层 render 的 `args.defaultProjectionData.mainMatrix` 用法不变 |
 | three | ^0.186 | 地标白模自定义图层 |
 | vite / typescript | ^6 / ^5 | 多页应用（MPA），产物 `base: './'` |
 | 百度地图 JSAPI GL | 运行时 CDN 注入（非 npm 依赖） | 360° 全景组件（`pano.ts`），需浏览器端 AK（环境变量 `VITE_BAIDU_MAP_AK`，经 `config.ts` 读取） |
@@ -56,6 +56,7 @@ npm run preview    # 本地预览 dist 产物
 6. **全景 veil 拦截点击**：`.psc-pano-veil` 的 `.visible` 态是 `pointer-events: auto` 的全屏层，且 Playwright/浏览器对「可见」的判定不看 opacity——关闭全景遮罩时若不移除 veil 的 `visible` 类，透明遮罩下 veil 仍会拦截整个页面的点击。`closePanoOverlay()` 中的 `showVeil('hidden')` 不可删
 7. **百度坐标系**：百度 API 一律 BD-09，与 OSM 的 WGS-84 差数百米，直接传坐标会匹配到错误街景机位；转换用 `pano.ts` 内置的标准算法链（WGS-84 → GCJ-02 → BD-09），勿省略任一段
 8. **setStyle 移除自定义图层**：底图切换（`switchBaseLayer` 的 `setStyle`）会把地标 three.js 自定义图层一并移除，切换后若不重挂，雷峰塔等模型永久消失（`applySceneLayers` 只负责建筑/地形/天空）。`landmarks.ts` 已通过持久 `style.load` 监听自动重挂（`attachLayer` 幂等 + `onAdd` 幂等守卫复用 renderer/scene）；改动挂载逻辑时必须保持这套幂等性，勿在 `onAdd` 里重复初始化。**行为约定**：卫星影像底图上不渲染地标白模（`attachLayer` 按样式是否含 vector 源切换图层 visibility，与建筑挤出图层「无矢量源即不挂」保持一致）
+9. **maplibre v6 升级要点**（v5 → v6.10 实测）：① worker 变为独立文件且经 `import.meta.url` 相对引用，vite 打包后该引用失效，症状为「样式解析、图层齐全但瓦片永不加载且零报错」——必须 `?worker&url` 导入 + `worker.format: 'es'` + `setWorkerUrl`（见 `scene.ts` 顶部与 `vite.config.ts`），否则白屏；② `styleimagemissing` 改为仅通知，补缺失图标须用 `setMissingStyleImageResolver`（`scene.ts`）；③ 切底图时 terrain 挂载中 `setStyle` 触发的 `shaderPreludeCode` 崩溃（上游 #6824）已在 v6.9.0 官方修复，勿再打 workaround；④ Liberty 样式的 `highway-shield*` filter null 警告为第三方样式数据噪音，v6 会带图层名打印，可忽略
 
 ## 网络环境注意
 
