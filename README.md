@@ -117,22 +117,24 @@ panoscape/
 src/assets/photos/<景区 id>/<景点 id>.jpg
 ```
 
-- 每个景点一个独立文件夹，便于日后为同一景点补充多张照片
-- 通过 Vite 资源导入（`meta.ts` 顶部 import）获得带哈希的打包地址，多页应用各路径下均可用
-- 来源为 Wikimedia Commons 自由版权图库（逐图署名见下方「数据署名」）
+- 文件名与景点 id 一致，扁平存放于景区目录下，通过 Vite 资源导入（`meta.ts` 顶部 import）获得带哈希的打包地址，多页应用各路径下均可用
+- 来源为 Wikimedia Commons 自由版权图库（总述署名见下方「数据署名」）
 
 ## 如何新增一个景区
 
-1. 新建 `scenic/<id>/index.html`（复制 `scenic/westlake/index.html`，改标题即可）
-2. 新建 `src/scenic/<id>/meta.ts`：填写景区元信息与景点清单（真实经纬度、简介、可选视角参数、可选地标模型与照片）
-3. 在 `src/common/registry.ts` 的 `scenicAreas` 数组中追加该 meta
+1. 新建 `scenic/<id>/index.html`：复制 `scenic/westlake/index.html`，改 `<title>` 与 `<meta name="description">`，并把 `<script>` 指向 `../../src/scenic/<id>/main.ts`
+2. 新建 `src/scenic/<id>/main.ts`：复制 `westlake/main.ts`，改为引入本景区 meta 并交给 `mountTour` 挂载
+3. 新建 `src/scenic/<id>/meta.ts`：填写景区元信息与景点清单（真实经纬度、简介、可选视角参数、可选地标模型与照片）
+4. 在 `src/common/registry.ts` 的 `scenicAreas` 数组中追加该 meta
 
-入口页卡片、构建入口（`vite.config.ts` 自动扫描）都会随之生效，无需改任何配置。
+入口页卡片、构建入口（`vite.config.ts` 自动扫描）都会随之生效，无需改任何构建配置。
 
 注意事项：
 
 - 照片放 `src/assets/photos/<景区 id>/<景点 id>.jpg`，在 meta 中以 Vite import 引入
 - 开启 3D 地形时，`overview.zoom` 不要低于 14（低缩放级别 maplibre 会压平俯仰角，详见 `AGENTS.md`）
+- 地标白模：内置三种造型（`pagoda` / `slimTower` / `pavilion`）填坐标即用；全新造型走 `kind: 'glb'`（模型放 `public/models/`）
+- 完成后 `npm run build` 须零错误，并在浏览器走查：入口页 → 景区页 → 景点飞行 → 底图切换
 
 ## 数据署名
 
@@ -141,28 +143,7 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 - 卫星影像 © Esri, Maxar, Earthstar Geographics（卫星模式，页面内展示）
 - 高程数据 © AWS Open Data（Mapzen Terrarium）
 - 360° 全景影像 © 百度地图（百度街景数据，经官方 JSAPI GL 全景组件调用，全景层内展示来源）；备选源 720 云全景漫游内容版权归原作品作者（`pano720` 配置处可注明）
-- 景点实景照片来自 [Wikimedia Commons](https://commons.wikimedia.org/)，各照片来源：
-
-  | 景点 | Commons 文件 |
-  |---|---|
-  | 苏堤春晓 | [West Lake 02](https://commons.wikimedia.org/wiki/File:West_Lake_02.jpg) |
-  | 曲院风荷 | [西湖的荷花](https://commons.wikimedia.org/wiki/File:西湖的荷花_-_panoramio.jpg) |
-  | 平湖秋月 | [Huanglong & Broken Bridge…w Bai Causeway](https://commons.wikimedia.org/wiki/File:Huanglong_&_Broken_Bridge_-_Hangzhou_City_&_West_Lake_w_Bai_Causeway_w_North_Inner_West_Lake.jpg) |
-  | 断桥残雪 | [Huanglong & Broken Bridge…near Broken Bridge](https://commons.wikimedia.org/wiki/File:Huanglong_&_Broken_Bridge_-_Hangzhou_City_&_West_Lake_near_Broken_Bridge.jpg) |
-  | 柳浪闻莺 | [Listining Orioles Singing in the Willows](https://commons.wikimedia.org/wiki/File:Listining_Orioles_Singing_in_the_Willows-chinese.jpg) |
-  | 花港观鱼 | [杭州西湖魏庐](https://commons.wikimedia.org/wiki/File:杭州西湖魏庐,_2011-01-31.jpg) |
-  | 雷峰夕照 | [Leifeng Pagoda 雷峰塔](https://commons.wikimedia.org/wiki/File:Leifeng_Pagoda_雷峰塔_-_panoramio.jpg) |
-  | 三潭印月 | [Three Pools Mirroring the Moon-pool](https://commons.wikimedia.org/wiki/File:Three_Pools_Mirroring_the_Moon-pool.JPG) |
-  | 南屏晚钟 | [净慈寺](https://commons.wikimedia.org/wiki/File:净慈寺.jpg) |
-  | 双峰插云 | [登北高峰](https://commons.wikimedia.org/wiki/File:登北高峰_-_panoramio.jpg) |
-  | 湖心亭 | [West Lake IMG 8759](https://commons.wikimedia.org/wiki/File:West_Lake_IMG_8759_huxin_pavillion_island.jpg) |
-  | 保俶塔 | [20260425 Baochu Pagoda 04](https://commons.wikimedia.org/wiki/File:20260425_Baochu_Pagoda_04.jpg) |
-  | 城隍阁 | [吴山城隍阁](https://commons.wikimedia.org/wiki/File:吴山城隍阁.jpg) |
-  | 音乐喷泉 | [Musical Fountain Show Xihu Hangzhou](https://commons.wikimedia.org/wiki/File:2014.11.21.193209_Musical_Fountain_Show_Xihu_Hangzhou.jpg) |
-  | 岳王庙 | [Yue Fei Temple, 2015-03-22 26](https://commons.wikimedia.org/wiki/File:Yue_Fei_Temple,_2015-03-22_26.jpg) |
-  | 楼外楼 | [Lou Wai Lou Restaurant, Hangzhou](https://commons.wikimedia.org/wiki/File:Lou_Wai_Lou_Restaurant,_Hangzhou.jpg) |
-
-  各文件页内有作者与具体协议信息（CC0 / CC BY / CC BY-SA 等）。
+- 景点实景照片来自 [Wikimedia Commons](https://commons.wikimedia.org/) 自由版权图库（CC0 / CC BY / CC BY-SA 等，各文件页内有作者与协议信息）
 
 ## AI 协作约定
 

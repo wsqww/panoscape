@@ -32,14 +32,18 @@ npm run preview    # 本地预览 dist 产物
 ## 架构约定
 
 - **多页应用**：入口页 `index.html` + 每个景区一个 `scenic/<id>/index.html` 薄壳；`vite.config.ts` 自动扫描 `scenic/*/index.html` 作为构建入口，新增景区无需改构建配置
-- **新增景区三步**：
-  1. 新建 `scenic/<id>/index.html`（复制现有景区薄壳，改标题）
-  2. 新建 `src/scenic/<id>/meta.ts`（实现 `ScenicAreaMeta`：中心/全景视角/景点清单/可选 `landmarks`）
-  3. 在 `src/common/registry.ts` 的 `scenicAreas` 数组追加该 meta
+- **新增景区流程**（4 个文件 + 文档同步 + 验证）：
+  1. `scenic/<id>/index.html`：复制现有景区薄壳，改 3 处——`<title>`、`<meta name="description">`（景区专属文案）、`<script>` 指向 `../../src/scenic/<id>/main.ts`
+  2. `src/scenic/<id>/main.ts`：装配薄壳（import 本景区 meta + `mountTour` 挂 `#app`）；漏建此文件或 script 仍指旧景区时，页面加载的还是旧景区数据
+  3. `src/scenic/<id>/meta.ts`：实现 `ScenicAreaMeta`（接口见 `src/common/types.ts`）；硬约束：`overview.zoom` ≥ 14（地形 pitch 压平坑，见已知坑 1）、坐标一律 WGS-84；`attractions` 顺序即地图编号；`photo`/`landmarks`/`pano720` 均可选，缺省时对应功能静默缺席不报错
+  4. `src/common/registry.ts`：加 import + `scenicAreas` 数组追加；入口页卡片纯 registry 数据驱动，无需改入口页代码
+  5. 文档同步：本文件「项目概述」的接入清单、README「当前状态」/「目录结构」
+  6. 验证：`npm run build` 零错误 + 浏览器走查（入口页 → 景区页 → 景点飞行 → 底图切换 → 全景若已配），控制台无新告警
+- **新增景区无需触碰**：vite.config.ts、部署 workflow、tsconfig、公共 CSS（无景区特定选择器）、favicon、入口页代码（预览为活的迷你 3D 地图，无需准备预览图资产）
 - **相机参数只在 load 事件里应用一次**（`scene.ts` 中有幂等守卫）：构造器传入的 pitch/bearing 会被丢弃，禁止把 jumpTo 移出 load
 - **版权控件**：`attributionControl: false`（入口页预览）或 maplibre 默认控件（游览页），不要引入自定义版权面板组件（已试过并回退，见「已知坑」）
 - **360° 全景模块**：`src/common/pano.ts` + `pano.css`，入口为 `openPanoOverlay(attraction, { heading, pano720 })` / `closePanoOverlay()` / `isPanoOverlayOpen()`；遮罩 DOM 由模块自管（懒创建挂 body，z-index 70），顶部为「说明胶囊 + 关闭钮」居中组合条。内容源优先级：百度 AK 有值 → 每个景点卡片显示全景按钮（`BMapGL.Panorama` 按需 JSONP 注入且单例缓存，坐标在模块内 WGS-84→BD-09）；AK 留空 → 景点按钮全部隐藏，底部操作区显示景区级「360° 全景」入口（iframe 嵌入景区级 `meta.pano720`，入口仅在配置了该字段时点亮）；皆缺省则无任何入口。修改关闭逻辑时必须同步隐藏 `.psc-pano-veil`（见已知坑 6）
-- **调试钩子**：`window.__pscMap`（地图实例）与 `window.__pscLandmarks`（three.js 场景，见 `landmarks.ts`）暴露到 window，供控制台/自动化检查
+- **调试钩子**：`window.__pscMap`（地图实例）暴露到 window（`scene.ts`），供控制台/自动化检查
 
 ## 地图与 3D 已知坑（重要）
 
@@ -61,9 +65,11 @@ npm run preview    # 本地预览 dist 产物
 
 ## 资产约定
 
-- **景点照片**：`src/assets/photos/<景点 id>/photo.jpg`，通过 meta.ts 中的 Vite import 引入（自动获得哈希地址）；禁止在预览/卡片上直接外链 Wikimedia
+- **景点照片**：`src/assets/photos/<景区 id>/<景点 id>.jpg`（每景区一层目录，文件名与景点 id 一致，扁平存放；不是每景点一个文件夹），通过 meta.ts 中的 Vite import 引入（自动获得哈希地址）；禁止在预览/卡片上直接外链 Wikimedia
 - 新增照片后用浏览器或 `sips -Z 1400` 控制单图体积（>700KB 时压缩）
-- 照片来源为 Wikimedia Commons，须在 README「数据署名」表格中逐图登记文件名
+- 照片来源为 Wikimedia Commons；README「数据署名」只保留来源总述，不逐图登记表格（避免随景区增长累积）
+- **地标白模（可选）**：内置三种程序化造型 `pagoda` / `slimTower` / `pavilion`（`landmarks.ts`），meta 的 `landmarks` 填 `kind` + `lngLat` 即用；全新造型走 `kind: 'glb'`，模型放 `public/models/`（目录需自建）
+- **720 云全景（可选）**：meta 的 `pano720` 填景区级漫游 URL，仅在 `BAIDU_MAP_AK` 留空时点亮底部入口
 
 ## 部署流程
 
