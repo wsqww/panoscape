@@ -14,9 +14,10 @@ dist/
 # 编辑器本地历史
 .history/
 
-# 环境变量与本地配置
+# 环境变量与本地配置（.env.example 为模板，允许入库）
 .env
 .env.*
+!.env.example
 *.local
 
 # 日志

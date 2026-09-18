@@ -33,6 +33,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # 浏览器端密钥经仓库 Actions Secrets 注入（Settings → Secrets → Actions 配置）
+          # 未配置时构建仍成功，运行时按留空逻辑降级（Esri 卫星源 / 720 云全景）
+          VITE_TIANDITU_KEY: ${{ secrets.VITE_TIANDITU_KEY }}
+          VITE_BAIDU_MAP_AK: ${{ secrets.VITE_BAIDU_MAP_AK }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

@@ -27,7 +27,7 @@ npm run preview    # 本地预览 dist 产物
 | maplibre-gl | ^5.24 | v5.24 的 render 第二参数为 `CustomRenderMethodInput`，取 `args.defaultProjectionData.mainMatrix` 作为墨卡托 MVP |
 | three | ^0.186 | 地标白模自定义图层 |
 | vite / typescript | ^6 / ^5 | 多页应用（MPA），产物 `base: './'` |
-| 百度地图 JSAPI GL | 运行时 CDN 注入（非 npm 依赖） | 360° 全景组件（`pano.ts`），需浏览器端 AK（`config.ts` 的 `BAIDU_MAP_AK`） |
+| 百度地图 JSAPI GL | 运行时 CDN 注入（非 npm 依赖） | 360° 全景组件（`pano.ts`），需浏览器端 AK（环境变量 `VITE_BAIDU_MAP_AK`，经 `config.ts` 读取） |
 
 ## 架构约定
 
@@ -40,6 +40,7 @@ npm run preview    # 本地预览 dist 产物
   5. 文档同步：本文件「项目概述」的接入清单、README「当前状态」/「目录结构」
   6. 验证：`npm run build` 零错误 + 浏览器走查（入口页 → 景区页 → 景点飞行 → 底图切换 → 全景若已配），控制台无新告警
 - **新增景区无需触碰**：vite.config.ts、部署 workflow、tsconfig、公共 CSS（无景区特定选择器）、favicon、入口页代码（预览为活的迷你 3D 地图，无需准备预览图资产）
+- **密钥管理**：浏览器端密钥（天地图 `VITE_TIANDITU_KEY`、百度 `VITE_BAIDU_MAP_AK`）一律环境变量注入，经 `config.ts` 读取（`?? ''` 兜底，缺省走降级路径，构建不失败）；本地写 `.env.local`（gitignored，模板 `.env.example`），CI 用仓库 Actions Secrets（`deploy-pages.yml` Build 步骤注入）。**禁止在代码、注释、commit 中出现明文密钥**（历史曾因注释残留泄漏，已用 git-filter-repo 清除并作废旧值）
 - **相机参数只在 load 事件里应用一次**（`scene.ts` 中有幂等守卫）：构造器传入的 pitch/bearing 会被丢弃，禁止把 jumpTo 移出 load
 - **版权控件**：`attributionControl: false`（入口页预览）或 maplibre 默认控件（游览页），不要引入自定义版权面板组件（已试过并回退，见「已知坑」）
 - **360° 全景模块**：`src/common/pano.ts` + `pano.css`，入口为 `openPanoOverlay(attraction, { heading, pano720 })` / `closePanoOverlay()` / `isPanoOverlayOpen()`；遮罩 DOM 由模块自管（懒创建挂 body，z-index 70），顶部为「说明胶囊 + 关闭钮」居中组合条。内容源优先级：百度 AK 有值 → 每个景点卡片显示全景按钮（`BMapGL.Panorama` 按需 JSONP 注入且单例缓存，坐标在模块内 WGS-84→BD-09）；AK 留空 → 景点按钮全部隐藏，底部操作区显示景区级「360° 全景」入口（iframe 嵌入景区级 `meta.pano720`，入口仅在配置了该字段时点亮）；皆缺省则无任何入口。修改关闭逻辑时必须同步隐藏 `.psc-pano-veil`（见已知坑 6）
@@ -59,7 +60,7 @@ npm run preview    # 本地预览 dist 产物
 ## 网络环境注意
 
 - 用户本机装有 Clash 代理：**浏览器经系统代理请求，终端 curl 直连，两者结果可能相反**。排查「浏览器加载外部资源失败但 curl 正常」时先确认代理
-- Esri 卫星瓦片（server.arcgisonline.com）在用户开启 Clash 时不可达，关闭代理或加直连规则即可；天地图 key 配置见 `src/common/config.ts`
+- Esri 卫星瓦片（server.arcgisonline.com）在用户开启 Clash 时不可达，关闭代理或加直连规则即可；天地图 key 经环境变量 `VITE_TIANDITU_KEY` 配置（本地 `.env.local` / CI Actions Secrets，见 `config.ts` 注释）
 - 百度全景脚本（api.map.baidu.com）国内直连稳定；AK 为空时不发起脚本请求，全景入口切换为底部景区级「360° 全景」（720 云）。AK 申请步骤见 README「360° 全景配置」
 - 景点照片已下载自托管于 `src/assets/photos/`，运行时不依赖 Wikimedia
 

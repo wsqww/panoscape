@@ -63,7 +63,8 @@ npm run preview    # 本地预览构建产物
 「卫星」图层默认使用 Esri World Imagery（免费无 key）。若你的网络环境无法访问 `server.arcgisonline.com`（典型现象：代理软件将该域名路由到了被拒绝的出口节点），可改用国内直连的**天地图**：
 
 1. 在 [天地图控制台](https://console.tianditu.gov.cn) 免费注册并创建「浏览器端」类型应用，拿到 `tk` 密钥
-2. 填入 `src/common/config.ts` 的 `TIANDITU_KEY`，刷新页面即可
+2. 本地开发：复制 `.env.example` 为 `.env.local`，填入 `VITE_TIANDITU_KEY`，重启 dev 服务器即可
+3. 线上部署：仓库 **Settings → Secrets and variables → Actions** 添加同名 Secret，构建时自动注入
 
 天地图影像为 CGCS2000 坐标系，与 OSM 数据一致、无偏移。
 
@@ -74,7 +75,7 @@ npm run preview    # 本地预览构建产物
 1. **百度街景**（`BAIDU_MAP_AK` 有值）：每个景点卡片显示「360° 全景」按钮，按景点坐标就近取景。申请步骤：
    - 在 [百度地图开放平台控制台](https://lbsyun.baidu.com) 注册并创建应用，类型选**浏览器端**，拿到 AK
    - 应用设置的 Referer 白名单中加入：`panoscape.shuaiqiang.wang/*` 与 `localhost:5173/*`（本地开发）
-   - 填入 `src/common/config.ts` 的 `BAIDU_MAP_AK`，刷新页面即可
+   - 配置 `VITE_BAIDU_MAP_AK`：本地写入 `.env.local`，线上配仓库 Actions Secrets（方式同天地图 key）
 2. **720 云漫游**（`BAIDU_MAP_AK` 留空时的备选源）：景点卡片不显示全景按钮，底部操作区出现景区级「360° 全景」入口（iframe 嵌入景区 `meta.ts` 中 `pano720` 配置的漫游）。挑选开启嵌入权限的公开漫游，复制分享链接填入即可；景区各自配置
 3. 两者皆缺省时，不展示任何全景入口
 
