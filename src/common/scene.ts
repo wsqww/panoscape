@@ -98,7 +98,7 @@ export interface SceneOptions {
   terrain?: boolean;
   /** 最大俯仰角，默认 75 */
   maxPitch?: number;
-  /** 最小缩放级别，默认 13：过低时地形透视会被 maplibre 压平且触发高程告警 */
+  /** 最小缩放级别，默认 13；俯瞰型全景（pitch 0）可按需调低，v6.10 实测 12 无高程告警 */
   minZoom?: number;
   /** 隐藏版权控件（入口页预览改用自定义 ⓘ 图标），默认 false */
   hideAttribution?: boolean;
@@ -278,6 +278,18 @@ export function switchBaseLayer(
   map.once('style.load', () => {
     try {
       applySceneLayers(map, options);
+      // 开启地形时切底图存在一个 maplibre 相机约束边缘案例：新样式的高程瓦片异步重载
+      // 期间相机约束按「平地」求解，高山场景（如武功山 pitch 62 特写）会把相机楔进山体，
+      // 症状为画面全黑且坐标投影错位。高程就绪（idle）后重申一次当前相机，
+      // 强制约束重新求解即可恢复；对平缓场景（西湖）无副作用（同值 jumpTo 视觉无变化）
+      map.once('idle', () => {
+        map.jumpTo({
+          center: map.getCenter(),
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing(),
+        });
+      });
     } catch (error) {
       console.error('[panoscape] 底图切换后 3D 图层重挂失败:', error);
     }

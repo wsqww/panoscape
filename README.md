@@ -14,6 +14,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 - **地标白模**：雷峰塔、保俶塔、城隍阁、湖心亭以程序化生成的三层白模精细呈现（three.js 自定义图层），支持以 GLB 模型替换
 - **图层切换**：右上角「卫星 / 标准」单按钮一键切换底图；卫星源默认 Esri，可配置为国内直连的天地图（见下）
 - **景点导览**：地图编号标记 + 侧栏分组列表，点击任一景点自动飞行至最佳视角；介绍卡片带实景照片，点击照片可大图预览
+- **徒步路线**：真实 GPX/实测轨迹转成的 GeoJSON 折线常显在地图上（贴地形渲染 + 方向箭头），途径点即景点，串联完整行进脉络（如武功山龙山村反穿金顶）
 - **360° 实景全景**：景点卡片一键进入该位置的百度街景全景（按坐标就近取景，初始朝向与地图视角联动），全屏拖拽环视、滚轮缩放、地面箭头切换机位
 
 ## 当前状态
@@ -21,6 +22,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 - [x] 3D 渲染方案选型：MapLibre GL JS + OpenFreeMap（免费、无需 API key）
 - [x] 多景区工程架构（Vite + TypeScript 多页应用）
 - [x] 首个景区：西湖（16 处景点，坐标经 Overpass API 逐一核对）
+- [x] 第二个景区：武功山（龙山村反穿金顶徒步线：14 个途径点 + 全程实测 GPX 轨迹 20.5km，Wikimedia 实景照片）
 - [x] 地标白模模型（three.js 程序化生成，支持 GLB 替换）
 - [x] 底图图层切换（标准 / 卫星）
 - [x] 景点 360° 实景全景（百度街景，需免费 AK，见下）
@@ -87,15 +89,20 @@ npm run preview    # 本地预览构建产物
 panoscape/
 ├── index.html                  # 入口页：景区选择
 ├── scenic/
-│   └── westlake/
-│       └── index.html          # 西湖游览页（薄壳，只挂 #app 与脚本）
+│   ├── westlake/
+│   │   └── index.html          # 西湖游览页（薄壳，只挂 #app 与脚本）
+│   └── wugongshan/
+│       └── index.html          # 武功山游览页（同上）
+├── scripts/
+│   └── gpx-to-trail.mjs        # GPX/JSON 轨迹 → trail.ts 生成器（零依赖）
 ├── src/
 │   ├── common/
-│   │   ├── types.ts            # ScenicAreaMeta / Attraction / LandmarkModel 类型
+│   │   ├── types.ts            # ScenicAreaMeta / Attraction / HikeTrail 等类型
 │   │   ├── registry.ts         # 景区注册表（扩展点）
 │   │   ├── config.ts           # 可配置项（天地图 key、百度地图 AK 等）
 │   │   ├── scene.ts            # 地图场景工厂：底图/3D 建筑/3D 地形/天空/版权控件
 │   │   ├── landmarks.ts        # 地标白模：three.js 自定义图层 + 程序化生成器 + GLB 通道
+│   │   ├── trail.ts            # 徒步路线：GeoJSON 折线 + 衬边 + 方向箭头（贴地、切底图自动重挂）
 │   │   ├── tour.ts             # 游览页通用界面：标记/侧栏/飞行/卡片/灯箱/图层切换
 │   │   ├── pano.ts / pano.css  # 360° 全景：百度 JSAPI GL 按需加载、坐标转换、全屏遮罩
 │   │   └── base.css / tour.css
@@ -103,8 +110,12 @@ panoscape/
 │   │   └── home.ts / home.css  # 入口页逻辑与样式
 │   ├── assets/photos/          # 景点照片：photos/<景区 id>/<景点 id>.jpg（自托管）
 │   ├── scenic/
-│   │   └── westlake/
-│   │       ├── meta.ts         # 西湖景区数据（真实坐标/简介/视角/地标/照片）
+│   │   ├── westlake/
+│   │   │   ├── meta.ts         # 西湖景区数据（真实坐标/简介/视角/地标/照片）
+│   │   │   └── main.ts         # 页面装配（薄壳）
+│   │   └── wugongshan/
+│   │       ├── meta.ts         # 武功山景区数据（反穿途径点/轨迹/照片）
+│   │       ├── trail.ts        # 反穿轨迹折线（由 scripts/gpx-to-trail.mjs 生成，勿手改）
 │   │       └── main.ts         # 页面装配（薄壳）
 │   └── vite-env.d.ts
 ├── package.json
@@ -133,7 +144,8 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 注意事项：
 
 - 照片放 `src/assets/photos/<景区 id>/<景点 id>.jpg`，在 meta 中以 Vite import 引入
-- 开启 3D 地形时，`overview.zoom` 不要低于 14（低缩放级别 maplibre 会压平俯仰角，详见 `AGENTS.md`）
+- 开启 3D 地形时，`overview.zoom` 不要低于 14（低缩放级别 maplibre 会压平俯仰角，详见 `AGENTS.md`）；高山景区 pitch 建议 ≤ 45（高差大时 pitch 60 的相机会被地形约束推走）
+- 徒步轨迹（可选）：把 GPX 交给 `node scripts/gpx-to-trail.mjs <轨迹文件> --out src/scenic/<id>/trail.ts --name "路线名" --var <景区名>Trail` 生成轨迹模块，meta 里配 `trails: [<trail>]` 即可常显；轨迹方向须与行进方向一致（不符加 `--reverse`）
 - 地标白模：内置三种造型（`pagoda` / `slimTower` / `pavilion`）填坐标即用；全新造型走 `kind: 'glb'`（模型放 `public/models/`）
 - 完成后 `npm run build` 须零错误，并在浏览器走查：入口页 → 景区页 → 景点飞行 → 底图切换
 
@@ -144,7 +156,7 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 - 卫星影像 © Esri, Maxar, Earthstar Geographics（卫星模式，页面内展示）
 - 高程数据 © AWS Open Data（Mapzen Terrarium）
 - 360° 全景影像 © 百度地图（百度街景数据，经官方 JSAPI GL 全景组件调用，全景层内展示来源）；备选源 720 云全景漫游内容版权归原作品作者（`pano720` 配置处可注明）
-- 景点实景照片来自 [Wikimedia Commons](https://commons.wikimedia.org/) 自由版权图库（CC0 / CC BY / CC BY-SA 等，各文件页内有作者与协议信息）
+- 景点实景照片来自自由版权图库：西湖各点为 [Wikimedia Commons](https://commons.wikimedia.org/)（CC0 / CC BY / CC BY-SA 等，各文件页内有作者与协议信息）；武功山各点为「龙山村反穿」轨迹沿线实拍（两步路轨迹附件，作者自持版权）
 
 ## AI 协作约定
 

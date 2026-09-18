@@ -20,6 +20,9 @@ dist/
 !.env.example
 *.local
 
+# 徒步轨迹原件（不入库，仅用于 scripts/gpx-to-trail.mjs 生成 trail.ts）
+trail.gpx
+
 # 日志
 *.log
 npm-debug.log*

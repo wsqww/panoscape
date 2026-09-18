@@ -6,7 +6,7 @@
 ## 项目概述
 
 Panoscape（中文「境游」）：基于 MapLibre 3D 地图的可交互式景区游览演示（个人作品集）。
-多景区架构：入口页选择景区 → 进入对应景区的 3D 全景游览页，景点卡片可进入百度街景 360° 实景全景。当前已接入：西湖。
+多景区架构：入口页选择景区 → 进入对应景区的 3D 全景游览页，景点卡片可进入百度街景 360° 实景全景。当前已接入：西湖、武功山（龙山村反穿金顶徒步线，全程实测 GPX 轨迹 + 14 个途径点；标记按 OSM 权威节点放真实地理位置、不强制贴线，侧栏分组「龙山村反穿」+「索道下山」）。
 
 ## 常用命令
 
@@ -35,8 +35,8 @@ npm run preview    # 本地预览 dist 产物
 - **新增景区流程**（4 个文件 + 文档同步 + 验证）：
   1. `scenic/<id>/index.html`：复制现有景区薄壳，改 3 处——`<title>`、`<meta name="description">`（景区专属文案）、`<script>` 指向 `../../src/scenic/<id>/main.ts`
   2. `src/scenic/<id>/main.ts`：装配薄壳（import 本景区 meta + `mountTour` 挂 `#app`）；漏建此文件或 script 仍指旧景区时，页面加载的还是旧景区数据
-  3. `src/scenic/<id>/meta.ts`：实现 `ScenicAreaMeta`（接口见 `src/common/types.ts`）；硬约束：`overview.zoom` ≥ 14（地形 pitch 压平坑，见已知坑 1）、坐标一律 WGS-84；`attractions` 顺序即地图编号；`photo`/`landmarks`/`pano720` 均可选，缺省时对应功能静默缺席不报错
-  4. `src/common/registry.ts`：加 import + `scenicAreas` 数组追加；入口页卡片纯 registry 数据驱动，无需改入口页代码
+  3. `src/scenic/<id>/meta.ts`：实现 `ScenicAreaMeta`（接口见 `src/common/types.ts`）；硬约束：带俯仰的 `overview.zoom` ≥ 14、俯瞰型 overview 用 pitch 0（地形 pitch 压平坑，见已知坑 1）、坐标一律 WGS-84；`attractions` 顺序即地图编号；`photo`/`landmarks`/`pano720`/`trails`/`minZoom`/`previewZoomDelta` 均可选，缺省时对应功能静默缺席不报错
+  4. `src/common/registry.ts`：加 import + `scenicAreas` 数组末尾追加（数组按接入时间先后排列，入口页倒序展示、最新景区排最前）；入口页卡片纯 registry 数据驱动，无需改入口页代码
   5. 文档同步：本文件「项目概述」的接入清单、README「当前状态」/「目录结构」
   6. 验证：`npm run build` 零错误 + 浏览器走查（入口页 → 景区页 → 景点飞行 → 底图切换 → 全景若已配），控制台无新告警
 - **新增景区无需触碰**：vite.config.ts、部署 workflow、tsconfig、公共 CSS（无景区特定选择器）、favicon、入口页代码（预览为活的迷你 3D 地图，无需准备预览图资产）
@@ -44,11 +44,12 @@ npm run preview    # 本地预览 dist 产物
 - **相机参数只在 load 事件里应用一次**（`scene.ts` 中有幂等守卫）：构造器传入的 pitch/bearing 会被丢弃，禁止把 jumpTo 移出 load
 - **版权控件**：`attributionControl: false`（入口页预览）或 maplibre 默认控件（游览页），不要引入自定义版权面板组件（已试过并回退，见「已知坑」）
 - **360° 全景模块**：`src/common/pano.ts` + `pano.css`，入口为 `openPanoOverlay(attraction, { heading, pano720 })` / `closePanoOverlay()` / `isPanoOverlayOpen()`；遮罩 DOM 由模块自管（懒创建挂 body，z-index 70），顶部为「说明胶囊 + 关闭钮」居中组合条。内容源优先级：百度 AK 有值 → 每个景点卡片显示全景按钮（`BMapGL.Panorama` 按需 JSONP 注入且单例缓存，坐标在模块内 WGS-84→BD-09）；AK 留空 → 景点按钮全部隐藏，底部操作区显示景区级「360° 全景」入口（iframe 嵌入景区级 `meta.pano720`，入口仅在配置了该字段时点亮）；皆缺省则无任何入口。修改关闭逻辑时必须同步隐藏 `.psc-pano-veil`（见已知坑 6）
+- **徒步路线模块**：`src/common/trail.ts`，meta 的 `trails?: HikeTrail[]`（`types.ts`）驱动，`tour.ts` 在 landmarks 之后调用 `addTrails(map, meta.trails)`（try/catch 包裹，失败不阻断游览页）。渲染为 GeoJSON source `panoscape-trail` + 衬边/主线/方向箭头三层，路线常显无开关、卫星底图同样显示（与地标不同，不依赖 vector 源判断）。重挂幂等模式与 landmarks 相同：持久 `style.load` 监听 + source/layer/箭头图各自 `has*` 守卫；改动挂载逻辑时保持幂等。轨迹数据由 `scripts/gpx-to-trail.mjs` 生成（GPX 或 `[lng,lat][]` JSON → Douglas–Peucker 简化 → `src/scenic/<id>/trail.ts`，勿手改生成文件；GPX 原件 gitignored 不入库，`--out` 必填防误覆盖）。用法：`node scripts/gpx-to-trail.mjs trail.gpx --out src/scenic/wugongshan/trail.ts --name "龙山村反穿金顶" --var wugongshanTrail`。**途径点标记约定**：attractions 的 lngLat 用 OSM 权威节点（村庄/山峰/垭口/设施，按真实地理位置），不吸附到轨迹线——用户明确要求标记不必与路线重合；轨迹线上下文见武功山 meta.ts 注释
 - **调试钩子**：`window.__pscMap`（地图实例）暴露到 window（`scene.ts`），供控制台/自动化检查
 
 ## 地图与 3D 已知坑（重要）
 
-1. **地形 pitch 压平**：开启 `setTerrain` 后，maplibre 在低缩放级别会强制把 pitch/bearing 压平为 0（防止看到 DEM 边界外虚空），且 `getPitch()` 仍返回设定值——状态与渲染不一致。**任何开启地形的场景，`overview.zoom` 必须 ≥ 14**；低 zoom 需要倾斜视角时对该场景关闭 terrain
+1. **地形 pitch 压平**：开启 `setTerrain` 后，maplibre 在低缩放级别会强制把 pitch/bearing 压平为 0（防止看到 DEM 边界外虚空），且 `getPitch()` 仍返回设定值——状态与渲染不一致。**带俯仰的 `overview.zoom` 必须 ≥ 14**；低 zoom 需要倾斜视角时对该场景关闭 terrain。若 overview 定位是俯瞰全景区/全路线（如武功山反穿线、西湖全湖），直接用 pitch 0——压平无影响，zoom 可低于 14：v6.10 实测 zoom 12.2 + pitch 0 无任何 DEM 告警，meta 的 `minZoom` 可按需调低（现值：西湖 13.1、武功山 12.5 + minZoom 12，取景值由 IAB 里 fitBounds 实测得出）。**高差大的高山场景（如武功山金顶 1918m）若仍要带俯仰的 overview/特写**：pitch 60 的低位相机在 DEM 加载过程中会被地形约束把取景点推下山（视角漂移、画面拉宽），实测 pitch 压到 45 即稳定；切底图时另有相机楔入山体黑屏坑（见坑 10）
 2. **DEM maxzoom 对齐**：DEM 源 `maxzoom: 13` 与矢量瓦片层级对齐。若设为 15，矢量瓦片超采样时每个瓦片都会输出 `cannot calculate elevation` 告警
 3. **POI 图标缺失告警**：OpenFreeMap 的 Liberty 样式引用了一批其 sprite 中不存在的 POI 图标，已通过 `styleimagemissing` 事件补透明占位消除（`scene.ts`）
 4. **原生挤出图层**：Liberty 样式自带 `building-3d`（minzoom 14，表达式对缺失字段抛空值警告），已在 `style.load` 时隐藏，建筑渲染统一由本项目的 `panoscape-buildings-3d` 图层负责（minzoom 11，白模配色，coalesce 保护）
@@ -57,6 +58,7 @@ npm run preview    # 本地预览 dist 产物
 7. **百度坐标系**：百度 API 一律 BD-09，与 OSM 的 WGS-84 差数百米，直接传坐标会匹配到错误街景机位；转换用 `pano.ts` 内置的标准算法链（WGS-84 → GCJ-02 → BD-09），勿省略任一段
 8. **setStyle 移除自定义图层**：底图切换（`switchBaseLayer` 的 `setStyle`）会把地标 three.js 自定义图层一并移除，切换后若不重挂，雷峰塔等模型永久消失（`applySceneLayers` 只负责建筑/地形/天空）。`landmarks.ts` 已通过持久 `style.load` 监听自动重挂（`attachLayer` 幂等 + `onAdd` 幂等守卫复用 renderer/scene）；改动挂载逻辑时必须保持这套幂等性，勿在 `onAdd` 里重复初始化。**行为约定**：卫星影像底图上不渲染地标白模（`attachLayer` 按样式是否含 vector 源切换图层 visibility，与建筑挤出图层「无矢量源即不挂」保持一致）
 9. **maplibre v6 升级要点**（v5 → v6.10 实测）：① worker 变为独立文件且经 `import.meta.url` 相对引用，vite 打包后该引用失效，症状为「样式解析、图层齐全但瓦片永不加载且零报错」——必须 `?worker&url` 导入 + `worker.format: 'es'` + `setWorkerUrl`（见 `scene.ts` 顶部与 `vite.config.ts`），否则白屏；② `styleimagemissing` 改为仅通知，补缺失图标须用 `setMissingStyleImageResolver`（`scene.ts`）；③ 切底图时 terrain 挂载中 `setStyle` 触发的 `shaderPreludeCode` 崩溃（上游 #6824）已在 v6.9.0 官方修复，勿再打 workaround；④ Liberty 样式的 `highway-shield*` filter null 警告为第三方样式数据噪音，v6 会带图层名打印，可忽略
+10. **切底图相机楔入山体（黑屏）**：开启地形时在**高山特写相机**（如武功山 pitch 62、zoom 15）下 `setStyle` 切底图，新样式 DEM 异步重载期间相机约束按平地求解，相机会被楔进山体——症状为画布全黑（含 DOM 标记一起「消失」的观感）、`project()` 返回画面外坐标，但 `isStyleLoaded/getLayer` 全部正常且零报错；DEM 就绪后不会自愈。已在 `switchBaseLayer` 修复：`style.load` 重挂图层后 `once('idle')` 用当前相机值重发一次 `jumpTo`，强制约束重新求解（同值 jumpTo 对平缓场景无副作用）。排查此类黑屏先 `project()` 检查相机是否错位，勿盲目怀疑瓦片网络
 
 ## 网络环境注意
 
@@ -69,7 +71,7 @@ npm run preview    # 本地预览 dist 产物
 
 - **景点照片**：`src/assets/photos/<景区 id>/<景点 id>.jpg`（每景区一层目录，文件名与景点 id 一致，扁平存放；不是每景点一个文件夹），通过 meta.ts 中的 Vite import 引入（自动获得哈希地址）；禁止在预览/卡片上直接外链 Wikimedia
 - 新增照片后用浏览器或 `sips -Z 1400` 控制单图体积（>700KB 时压缩）
-- 照片来源为 Wikimedia Commons；README「数据署名」只保留来源总述，不逐图登记表格（避免随景区增长累积）
+- 照片来源按景区不同：西湖为 Wikimedia Commons；武功山为两步路轨迹沿线实拍（用户自有轨迹附件）。README「数据署名」只保留来源总述，不逐图登记表格（避免随景区增长累积）
 - **地标白模（可选）**：内置三种程序化造型 `pagoda` / `slimTower` / `pavilion`（`landmarks.ts`），meta 的 `landmarks` 填 `kind` + `lngLat` 即用；全新造型走 `kind: 'glb'`，模型放 `public/models/`（目录需自建）
 - **720 云全景（可选）**：meta 的 `pano720` 填景区级漫游 URL，仅在 `BAIDU_MAP_AK` 留空时点亮底部入口
 

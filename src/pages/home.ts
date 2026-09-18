@@ -1,13 +1,18 @@
 import type { ScenicAreaMeta } from '../common/types';
 import { scenicAreas } from '../common/registry';
 import { createScene } from '../common/scene';
+import { addTrails } from '../common/trail';
 import '../common/base.css';
 import './home.css';
 
-/** 入口页占位卡数量：提示后续会有更多景区接入 */
-const UPCOMING_COUNT = 2;
+/** 入口页网格列数：景区卡与占位卡合计保持 3 的倍数，网格不留缺口 */
+const GRID_COLUMNS = 3;
 
-/** 卡片迷你预览的取景参数：关闭地形以避开低缩放级别的俯仰限制，保持透视感 */
+/** 占位卡数量：按已接入景区数自动补足到网格列数的整数倍 */
+const UPCOMING_COUNT = (GRID_COLUMNS - (scenicAreas.length % GRID_COLUMNS)) % GRID_COLUMNS;
+
+/** 卡片迷你预览的取景参数：关闭地形以避开低缩放级别的俯仰限制，保持透视感；
+ *  缩放偏移可被景区级 meta.previewZoomDelta 覆盖（长条形路线需更小） */
 const PREVIEW_ZOOM_OFFSET = -0.8;
 const PREVIEW_PITCH = 50;
 
@@ -52,7 +57,7 @@ function renderHome(root: HTMLElement): void {
         <h1 class="psc-home-title">选择景区，即刻入景</h1>
       </header>
       <main class="psc-home-grid">
-        ${scenicAreas.map((area) => cardHtml(area)).join('')}
+        ${[...scenicAreas].reverse().map((area) => cardHtml(area)).join('')}
         ${Array.from({ length: UPCOMING_COUNT }, () => cardHtml(null)).join('')}
       </main>
       <footer class="psc-home-footer">
@@ -65,10 +70,10 @@ function renderHome(root: HTMLElement): void {
 
 /** 在卡片内创建非交互的迷你 3D 地图预览（懒加载，进入视口才初始化） */
 function mountPreview(host: HTMLElement, area: ScenicAreaMeta): void {
-  createScene({
+  const map = createScene({
     container: host,
     center: area.center,
-    zoom: area.overview.zoom + PREVIEW_ZOOM_OFFSET,
+    zoom: area.overview.zoom + (area.previewZoomDelta ?? PREVIEW_ZOOM_OFFSET),
     pitch: PREVIEW_PITCH,
     bearing: area.overview.bearing,
     interactive: false,
@@ -78,6 +83,8 @@ function mountPreview(host: HTMLElement, area: ScenicAreaMeta): void {
     maxPitch: 60,
     hideAttribution: true,
   });
+  // 配置了徒步路线的景区，在预览中同步常显路线缩略
+  if (area.trails?.length) addTrails(map, area.trails);
 }
 
 const root = document.getElementById('app');

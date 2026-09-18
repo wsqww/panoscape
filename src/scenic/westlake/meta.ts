@@ -27,10 +27,11 @@ export const westlake: ScenicAreaMeta = {
   subtitle: '杭州 · 人间天堂',
   description:
     '三面云山一面城。苏白两堤如绸带系湖，十景错落其间——以真实比例的 3D 建筑与山形，俯瞰这座千年的湖泊。',
-  center: [120.1445, 30.2455],
-  // 注意：开启 3D 地形后 maplibre 会在低缩放级别强制压平俯仰角，
-  // 全景视角的 zoom 必须保持在 14 以上才能看到透视与旋转效果
-  overview: { zoom: 14, pitch: 55, bearing: -20 },
+  // 景区中心取湖面几何中心：预览缩略图与「回到全景」均能容纳完整湖景
+  center: [120.13901, 30.24724],
+  // 全景俯瞰整个西湖（zoom 13.1 为 720p 视口下湖面恰好入画的实测值；
+  // 俯瞰视角用 pitch 0——低缩放下带俯仰会被 maplibre 压平，见 AGENTS.md 已知坑 1）
+  overview: { zoom: 13.1, pitch: 0, bearing: -20 },
   // 720 云景区级备选全景源（湖中区域航拍漫游，可内部切换场景）：
   // 百度全景 AK 留空时展示为底部「360° 全景」入口，AK 填入后自动停用
   pano720: 'https://www.720yun.com/t/9be2fmz6cbr',

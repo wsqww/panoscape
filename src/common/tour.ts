@@ -2,6 +2,7 @@ import * as maplibregl from 'maplibre-gl';
 import type { BaseLayerMode } from './scene';
 import { createScene, switchBaseLayer } from './scene';
 import { addLandmarkModels } from './landmarks';
+import { addTrails } from './trail';
 import { closePanoOverlay, isPanoOverlayOpen, openPanoOverlay } from './pano';
 import { BAIDU_MAP_AK } from './config';
 import type { Attraction, ScenicAreaMeta } from './types';
@@ -199,6 +200,7 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     zoom: meta.overview.zoom,
     pitch: meta.overview.pitch,
     bearing: meta.overview.bearing,
+    minZoom: meta.minZoom,
   });
 
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
@@ -211,6 +213,14 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     } catch (error) {
       // 地标挂载失败不应阻断整个游览页（地图与景点交互保持可用）
       console.error('[panoscape] 地标模型挂载失败:', error);
+    }
+  }
+  if (meta.trails?.length) {
+    try {
+      addTrails(map, meta.trails);
+    } catch (error) {
+      // 路线挂载失败不应阻断整个游览页（地图与景点交互保持可用）
+      console.error('[panoscape] 徒步路线挂载失败:', error);
     }
   }
 
@@ -351,7 +361,7 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     if (!attraction.photo) return;
     lightboxImg.src = attraction.photo;
     lightboxImg.alt = `${attraction.name} 实景大图`;
-    lightboxCaption.textContent = `${attraction.name} · 实景照片（图片来源 Wikimedia Commons）`;
+    lightboxCaption.textContent = `${attraction.name} · 实景照片（来源见 README「数据署名」）`;
     lightboxEl.classList.add('open');
   }
 

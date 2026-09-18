@@ -39,6 +39,14 @@ export interface LandmarkModel {
   url?: string;
 }
 
+/** 徒步路线轨迹：地图上常显的真实轨迹折线（坐标来自 GPX 等实测数据简化） */
+export interface HikeTrail {
+  /** 路线名称（如「龙山村反穿金顶」），当前版本仅作数据标识 */
+  name: string;
+  /** 轨迹折线坐标序列 [lng, lat][]（WGS-84，顺序即行进方向，方向箭头按此渲染） */
+  coordinates: [number, number][];
+}
+
 /** 景区元信息：入口页展示与游览页初始化所需的全部数据 */
 export interface ScenicAreaMeta {
   /** 唯一标识，同时决定访问路径 /scenic/<id>/ */
@@ -53,8 +61,14 @@ export interface ScenicAreaMeta {
   center: [number, number];
   /** 全景视角：进入景区与「回到全景」使用的初始相机 */
   overview: AttractionView;
+  /** 最小缩放级别（可选，默认 13）：全景俯瞰全景区时可按需调低 */
+  minZoom?: number;
+  /** 入口页缩略图相对全景的缩放偏移（可选，默认 -0.8）：长条形路线/景区可调小以完整入画 */
+  previewZoomDelta?: number;
   /** 景点清单，顺序即地图编号（01 起） */
   attractions: Attraction[];
+  /** 徒步路线清单（可选）：在游览页地图上常显的轨迹折线 */
+  trails?: HikeTrail[];
   /** 精细地标模型（可选）：以白模风格渲染于 3D 建筑之上 */
   landmarks?: LandmarkModel[];
   /**
