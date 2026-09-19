@@ -33,13 +33,19 @@ export const wugongshan: ScenicAreaMeta = {
   // bearing 105 把南北走向的路线横过来铺满宽屏；minZoom 12 实测无 DEM 告警
   overview: { zoom: 12.5, pitch: 0, bearing: 105 },
   minZoom: 12,
+  // 高差大（600m→1918m）：低空直飞会被地形约束推离目标，改用两段式飞行
+  twoPhaseFlight: true,
   // 缩略图额外缩小（默认 -0.8）：南北 9km 的长路线在宽扁卡片里需更大偏移才完整入画
   previewZoomDelta: -2.2,
   // 龙山村反穿金顶实测轨迹（详见 trail.ts 生成说明）
   trails: [wugongshanTrail],
-  // 720 云景区级漫游：江西萍乡武功山 720VR 全景展示（精选，作者 鲨鱼视角，
-  // 9 场景覆盖景区大门→紫极宫→一线缆车→金顶大草甸→问道台→双乳峰）
-  pano720: 'https://www.720yun.com/vr/04ejz7tv5u0',
+  // 720 云景区级漫游（遮罩顶栏可切换，均免费）：
+  // 徒步实拍=美浪VR 沿反穿路线的两天一夜全景分享；金顶星空=风水师-葛耀的多场景漫游
+  // （游客中心→大门→缆车→观景台→日落→云海→玻璃栈桥→帐篷节→金顶 1918→下山）
+  pano720: [
+    { name: '徒步实拍', url: 'https://www.720yun.com/vr/e652daruwla' },
+    { name: '金顶星空', url: 'https://www.720yun.com/t/189jussatm2?scene_id=23590165' },
+  ],
   attractions: [
     {
       id: 'longshan-village',

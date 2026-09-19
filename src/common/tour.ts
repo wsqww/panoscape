@@ -187,7 +187,9 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
   panoBtnEl.hidden = !BAIDU_MAP_AK;
   /* 景区级 720 云入口：配置了 pano720 时点亮底部「360° 全景」按钮 */
   const panoEntryEl = root.querySelector<HTMLButtonElement>('.psc-pano-entry');
-  if (panoEntryEl && meta.pano720) {
+  const pano720Ready =
+    typeof meta.pano720 === 'string' ? meta.pano720.length > 0 : (meta.pano720?.length ?? 0) > 0;
+  if (panoEntryEl && pano720Ready) {
     panoEntryEl.hidden = false;
     panoEntryEl.addEventListener('click', () => {
       openPanoOverlay({ name: meta.name, lngLat: meta.center }, { pano720: meta.pano720 });
@@ -202,6 +204,16 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     bearing: meta.overview.bearing,
     minZoom: meta.minZoom,
   });
+
+  /* 高程数据按需异步加载：用户手动操作会沿路径把高程瓦片"踩"出来，而程序化飞行
+     穿越未加载高程的区域会被地形约束推离目标（详见 AGENTS.md 已知坑 10）。
+     因此这里常驻监听用户交互（拖动/缩放/触摸），落地修正据此判断是否让位 */
+  let interacted = false;
+  const markInteracted = (): void => { interacted = true; };
+  map.on('mousedown', markInteracted);
+  map.on('wheel', markInteracted);
+  map.on('touchstart', markInteracted);
+  map.on('dragstart', markInteracted);
 
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
   map.addControl(new maplibregl.FullscreenControl(), 'top-right');
@@ -253,6 +265,16 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     )
     .join('');
 
+  /* 高程数据按需异步加载：就绪前飞向高海拔点会被地形约束推离目标（详见 AGENTS.md 已知坑 10）。
+     就绪信号 = 首次 idle（地图完全静默，含高程瓦片全部加载完毕）+ 800ms 缓冲；
+     就绪前禁用景点交互（侧栏与标记变暗）。8 秒兜底强制放开——地形加载失败时
+     scene.ts 已降级为平面，不存在约束问题 */
+  root.classList.add('psc-notready');
+  map.once('idle', () => {
+    window.setTimeout(() => root.classList.remove('psc-notready'), 800);
+  });
+  window.setTimeout(() => root.classList.remove('psc-notready'), 8000);
+
   /** 隐藏景点卡片 */
   function hideCard(): void {
     cardEl.classList.remove('visible');
@@ -286,18 +308,89 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     cardEl.classList.add('visible');
   }
 
-  /** 平滑飞行到景点视角 */
-  function flyToAttraction(attraction: Attraction): void {
-    map.flyTo({ ...cameraForAttraction(meta, attraction), duration: FLY_DURATION_MS, curve: 1.5, essential: true });
-  }
+/** 飞行序号：连续快速切换景点时，仅让最后一次飞行的落地修正生效 */
+  let flightSeq = 0;
 
+  /** 平滑飞行到景点视角：两段式（高差大场景先高位推近、等高程就绪、再俯冲降落）或直飞，落地后按偏移量缓动归中 */
+  function flyToAttraction(attraction: Attraction): void {
+    const camera = cameraForAttraction(meta, attraction);
+    const seq = ++flightSeq;
+    interacted = false;
+    /* 落地修正：偏移超过 80px 或 zoom 被约束压低超 0.3 时，easeTo 短促缓动滑回正中；
+       平缓场景偏移极小则不动作；用户已自行拖动/缩放（交互标志）或缓动进行中则跳过 */
+    const correct = (): void => {
+      if (seq !== flightSeq || interacted || map.isMoving()) return;
+      const moved = map.getCenter();
+      const nearTarget = Math.abs(moved.lng - attraction.lngLat[0]) < 0.02 && Math.abs(moved.lat - attraction.lngLat[1]) < 0.02;
+      if (!nearTarget) return;
+      /* 目标点 DEM 未就绪时地形约束会逐帧压制相机（zoom 被拉低、目标偏离中心），
+         此刻任何缓动都会被压回——等高程可查询后再归中，才能一次缓动到位 */
+      if (map.queryTerrainElevation(attraction.lngLat) == null) return;
+      const p = map.project(attraction.lngLat);
+      const offX = p.x - map.getCanvas().clientWidth / 2;
+      const offY = p.y - map.getCanvas().clientHeight / 2;
+      const zoomDeficit = camera.zoom - map.getZoom();
+      if (Math.max(Math.abs(offX), Math.abs(offY)) < 80 && zoomDeficit < 0.3) return;
+      /* jumpTo 瞬时重申是唯一可靠的归中方式（easeTo/flyTo 的动画路径会被约束逐帧压制）；
+         随后用地图容器反向平移过渡（画布与标记一起滑动），把瞬跳伪装成 700ms 的缓出滑移 */
+      map.jumpTo(camera);
+      const p2 = map.project(attraction.lngLat);
+      const dx = Math.round(p.x - p2.x);
+      const dy = Math.round(p.y - p2.y);
+      if (dx || dy) {
+        const host = map.getContainer();
+        host.style.transition = 'none';
+        host.style.transform = `translate(${dx}px, ${dy}px)`;
+        void host.offsetWidth;
+        host.style.transition = 'transform 700ms ease-out';
+        host.style.transform = 'translate(0px, 0px)';
+      }
+    };
+    const registerCorrection = (): void => {
+      map.once('moveend', correct);
+      map.once('idle', correct);
+    };
+    if (meta.twoPhaseFlight) {
+      /* 两段式：第一段高位（pitch 0）推近目标区域，沿程触发高程瓦片加载；
+         显式等目标点高程可查询（第一段已触发其加载）后，第二段再降到取景参数——
+         低空路径的高程已就绪，约束不会推离目标，一步缓动到位 */
+      map.flyTo({ center: attraction.lngLat, zoom: Math.min(camera.zoom, 13.6), pitch: 0, bearing: camera.bearing, duration: 1600, curve: 1.5, essential: true });
+      map.once('moveend', () => {
+        if (seq !== flightSeq || interacted) return;
+        /* 兜底：高程 10 秒仍不可查询（瓦片失败已降级平面 / 网络极慢）则放弃等待，
+           直接执行第二段——平面场景无地形约束，不会偏移卡死 */
+        const waitDem = window.setInterval(() => {
+          if (seq !== flightSeq || interacted) { window.clearInterval(waitDem); window.clearTimeout(giveUp); return; }
+          if (map.queryTerrainElevation(attraction.lngLat) != null) {
+            window.clearInterval(waitDem);
+            window.clearTimeout(giveUp);
+            map.flyTo({ ...camera, duration: 2200, curve: 1.5, essential: true });
+            registerCorrection();
+          }
+        }, 250);
+        const giveUp = window.setTimeout(() => {
+          if (seq !== flightSeq || interacted) return;
+          map.flyTo({ ...camera, duration: 2200, curve: 1.5, essential: true });
+          registerCorrection();
+        }, 10000);
+      });
+    } else {
+      map.flyTo({ ...camera, duration: FLY_DURATION_MS, curve: 1.5, essential: true });
+      registerCorrection();
+    }
+    /* 兜底复查窗：DEM 高程瓦片异步到货会反复触发约束重排，最终降落后 20 秒内
+       每 400ms 复查一次归中状态，收敛或用户已操作后自动空转 */
+    const settleTimer = window.setInterval(correct, 400);
+    window.setTimeout(() => window.clearInterval(settleTimer), 20000);
+  }
   /** 移动端下选中景点后收起抽屉侧栏（桌面端无效果） */
   function closeSidebarOnMobile(): void {
     sidebarEl.classList.remove('open');
   }
 
-  /** 选中景点：同步标记/侧栏高亮、弹出卡片并飞行 */
+  /** 选中景点：同步标记/侧栏高亮、弹出卡片并飞行；高程未就绪时忽略点击 */
   function select(attraction: Attraction): void {
+    if (root.classList.contains('psc-notready')) return;
     markers.forEach((el, id) => el.classList.toggle('active', id === attraction.id));
     listEl.querySelectorAll('.psc-item').forEach((el) => {
       el.classList.toggle('active', (el as HTMLElement).dataset.id === attraction.id);

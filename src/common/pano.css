@@ -108,6 +108,36 @@
   white-space: nowrap;
 }
 
+/* 多漫游切换按钮组：仅一条漫游时整组隐藏 */
+.psc-pano-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.psc-pano-pill {
+  pointer-events: auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(12, 31, 28, 0.72);
+  border: 1px solid var(--psc-panel-border);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: rgba(159, 181, 173, 0.9);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.psc-pano-pill:hover {
+  color: #fff;
+}
+
+.psc-pano-pill.active {
+  border-color: var(--psc-accent);
+  color: var(--psc-accent);
+}
+
 /* 关闭按钮：与灯箱关闭按钮同款 */
 .psc-pano-close {
   flex: none;

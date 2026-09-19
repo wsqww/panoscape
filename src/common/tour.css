@@ -565,3 +565,17 @@
     display: none;
   }
 }
+
+/* 高程数据未就绪：禁用景点交互并整体降透明度，就绪后由 psc-notready 移除恢复 */
+.psc-notready .psc-sidebar-list {
+  opacity: 0.45;
+}
+
+.psc-notready .psc-item,
+.psc-notready .psc-marker {
+  pointer-events: none;
+}
+
+.psc-notready .psc-marker {
+  opacity: 0.55;
+}

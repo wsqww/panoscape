@@ -3,6 +3,7 @@
  * WGS-84 → BD-09 坐标转换与全屏遮罩的生命周期，供游览页景点卡片调用。
  */
 import { BAIDU_MAP_AK } from './config';
+import type { Pano720Item } from './types';
 import './pano.css';
 
 /** 百度 JSAPI GL 脚本地址（ak 与 callback 参数由 loadBaiduGL 动态拼接） */
@@ -24,6 +25,10 @@ let panoService: any = null;
 let overlayEl: HTMLElement | null = null;
 let veilEl: HTMLElement | null = null;
 let captionEl: HTMLElement | null = null;
+let switchEl: HTMLElement | null = null;
+
+/** 当前打开的 720 云漫游条目清单与激活下标（单链接时长度为 1，隐藏切换组） */
+let pano720Items: Pano720Item[] = [];
 
 /** GCJ-02 偏移计算所用克拉索夫斯基椭球长半轴（米） */
 const ELLIPSOID_A = 6378245;
@@ -147,12 +152,14 @@ function ensureOverlay(): HTMLElement {
     </div>
     <div class="psc-pano-top">
       <div class="psc-pano-caption"></div>
+      <div class="psc-pano-switch"></div>
       <button type="button" class="psc-pano-close" aria-label="关闭全景">✕</button>
     </div>
   `;
   el.querySelector('.psc-pano-close')!.addEventListener('click', () => closePanoOverlay());
   veilEl = el.querySelector('.psc-pano-veil')!;
   captionEl = el.querySelector('.psc-pano-caption')!;
+  switchEl = el.querySelector('.psc-pano-switch')!;
   document.body.appendChild(el);
   overlayEl = el;
   return el;
@@ -211,6 +218,37 @@ function showPanoIframe(host: HTMLElement, url: string): void {
   }, 12000);
 }
 
+/** 归一化 720 云配置：单链接、裸链接数组与命名条目数组统一为条目数组 */
+function normalizePano720(config: string | (string | Pano720Item)[]): Pano720Item[] {
+  const list = Array.isArray(config) ? config : [config];
+  return list.map((item, index) =>
+    typeof item === 'string' ? { name: `全景 ${index + 1}`, url: item } : item,
+  );
+}
+
+/** 渲染 720 云漫游切换按钮组：仅一条时隐藏；点击换装 iframe 内容并同步高亮 */
+function renderPanoSwitch(): void {
+  if (!switchEl) return;
+  if (pano720Items.length <= 1) {
+    switchEl.style.display = 'none';
+    return;
+  }
+  switchEl.style.display = '';
+  switchEl.replaceChildren(
+    ...pano720Items.map((item, index) => {
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'psc-pano-pill' + (index === 0 ? ' active' : '');
+      pill.textContent = item.name;
+      pill.addEventListener('click', () => {
+        switchEl!.querySelectorAll('.psc-pano-pill').forEach((p, i) => p.classList.toggle('active', i === index));
+        showPanoIframe(document.getElementById(PANO_HOST_ID)!, item.url);
+      });
+      return pill;
+    }),
+  );
+}
+
 /**
  * 打开某景点的 360° 全景遮罩。
  * 参数 attraction：含 name（展示）与 lngLat（WGS-84，OSM 坐标）的景点对象；
@@ -220,14 +258,23 @@ function showPanoIframe(host: HTMLElement, url: string): void {
  */
 export async function openPanoOverlay(
   attraction: { name: string; lngLat: [number, number] },
-  opts: { heading?: number; pano720?: string } = {},
+  opts: { heading?: number; pano720?: string | Pano720Item[] } = {},
 ): Promise<void> {
   const el = ensureOverlay();
   el.classList.add('open');
+  if (switchEl) switchEl.style.display = 'none';
   /* AK 未配置时启用 720 云备选源；两者皆缺省则提示敬请期待 */
   if (!BAIDU_MAP_AK && opts.pano720) {
+    pano720Items = normalizePano720(opts.pano720);
+    /* 空数组配置视为未配置：走「未上线」提示，避免下方取 [0] 崩溃 */
+    if (pano720Items.length === 0) {
+      if (captionEl) captionEl.textContent = attraction.name;
+      showVeil('info', '360° 全景功能即将上线，敬请期待');
+      return;
+    }
     if (captionEl) captionEl.textContent = `${attraction.name} · 全景来源：720云`;
-    showPanoIframe(document.getElementById(PANO_HOST_ID)!, opts.pano720);
+    renderPanoSwitch();
+    showPanoIframe(document.getElementById(PANO_HOST_ID)!, pano720Items[0].url);
     return;
   }
   if (captionEl) captionEl.textContent = `${attraction.name} · 全景来源：百度地图`;

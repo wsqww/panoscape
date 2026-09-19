@@ -47,6 +47,14 @@ export interface HikeTrail {
   coordinates: [number, number][];
 }
 
+/** 720 云全景漫游条目：全景遮罩内可切换的单一漫游 */
+export interface Pano720Item {
+  /** 切换按钮文案（如「徒步实拍」「金顶景区」） */
+  name: string;
+  /** 720 云分享或嵌入链接（/t/ 或 /vr/ 形式均可） */
+  url: string;
+}
+
 /** 景区元信息：入口页展示与游览页初始化所需的全部数据 */
 export interface ScenicAreaMeta {
   /** 唯一标识，同时决定访问路径 /scenic/<id>/ */
@@ -65,6 +73,9 @@ export interface ScenicAreaMeta {
   minZoom?: number;
   /** 入口页缩略图相对全景的缩放偏移（可选，默认 -0.8）：长条形路线/景区可调小以完整入画 */
   previewZoomDelta?: number;
+  /** 两段式飞行（可选）：高差大的场景先高位推近目标区域再降到取景参数，
+   *  避免低空飞行路径被地形约束推离目标 */
+  twoPhaseFlight?: boolean;
   /** 景点清单，顺序即地图编号（01 起） */
   attractions: Attraction[];
   /** 徒步路线清单（可选）：在游览页地图上常显的轨迹折线 */
@@ -72,9 +83,10 @@ export interface ScenicAreaMeta {
   /** 精细地标模型（可选）：以白模风格渲染于 3D 建筑之上 */
   landmarks?: LandmarkModel[];
   /**
-   * 720 云全景漫游嵌入地址（可选，景区级备选内容源）。
+   * 720 云全景漫游（可选，景区级备选内容源）：单个嵌入地址，或多个漫游条目
+   * （遮罩顶栏自动出现切换按钮，条目含 name 切换文案与 url 嵌入地址，也支持裸链接数组）。
    * BAIDU_MAP_AK 留空时：景点卡片不显示全景按钮，改为在底部操作区显示
    * 景区级「360° 全景」入口（iframe 嵌入该漫游）。AK 有值时景点按钮接管，此字段停用。
    */
-  pano720?: string;
+  pano720?: string | Pano720Item[];
 }
