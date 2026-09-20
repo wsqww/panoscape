@@ -4,6 +4,7 @@ dist/
 
 # AI 智能体生成的目录与文件
 .zcode/
+.zcodeignore
 .claude/
 .cursor/
 .codex/

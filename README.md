@@ -22,7 +22,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 - [x] 3D 渲染方案选型：MapLibre GL JS + OpenFreeMap（免费、无需 API key）
 - [x] 多景区工程架构（Vite + TypeScript 多页应用）
 - [x] 首个景区：西湖（16 处景点，坐标经 Overpass API 逐一核对）
-- [x] 第二个景区：武功山（龙山村反穿金顶徒步线：14 个途径点 + 全程实测 GPX 轨迹 20.5km，Wikimedia 实景照片）
+- [x] 第二个景区：武功山（龙山村反穿金顶徒步线：14 个途径点 + 全程 22.6km 轨迹（两步路 KML 实测 + OSM 村道补段），轨迹沿线实拍照片）
 - [x] 地标白模模型（three.js 程序化生成，支持 GLB 替换）
 - [x] 底图图层切换（标准 / 卫星）
 - [x] 景点 360° 实景全景（百度街景，需免费 AK，见下）
@@ -38,7 +38,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 | 卫星影像 | Esri World Imagery | 免费，可配置为天地图（需免费 key） |
 | 3D 建筑 | OSM `render_height` | 矢量瓦片内置真实建筑高度，按实际比例挤出 |
 | 3D 地形 | AWS Open Data（Terrarium DEM） | 免费全球高程瓦片，失败时自动降级为平面 |
-| 景点照片 | Wikimedia Commons | 免费图库，已下载至本地自托管 |
+| 景点照片 | Wikimedia Commons + 两步路轨迹实拍 | 自由图库与作者自摄，已下载至本地自托管 |
 | 360° 全景 | 百度地图 JSAPI GL 全景组件 | 免费浏览器端 AK，按景点坐标就近匹配街景机位 |
 | 构建 | Vite + TypeScript | 多页应用（MPA），产物为纯静态文件 |
 | 部署 | 静态托管 | GitHub Pages / Vercel 均可（`base: './'`） |
@@ -94,7 +94,7 @@ panoscape/
 │   └── wugongshan/
 │       └── index.html          # 武功山游览页（同上）
 ├── scripts/
-│   └── gpx-to-trail.mjs        # GPX/JSON 轨迹 → trail.ts 生成器（零依赖）
+│   └── gpx-to-trail.mjs        # GPX/KML/JSON 轨迹 → trail.ts 生成器（零依赖，支持多输入拼接）
 ├── src/
 │   ├── common/
 │   │   ├── types.ts            # ScenicAreaMeta / Attraction / HikeTrail 等类型
@@ -131,7 +131,7 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 ```
 
 - 文件名与景点 id 一致，扁平存放于景区目录下，通过 Vite 资源导入（`meta.ts` 顶部 import）获得带哈希的打包地址，多页应用各路径下均可用
-- 来源为 Wikimedia Commons 自由版权图库（总述署名见下方「数据署名」）
+- 来源见下方「数据署名」（西湖为 Wikimedia Commons，武功山为两步路轨迹沿线实拍）
 
 ## 如何新增一个景区
 
@@ -146,7 +146,7 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 
 - 照片放 `src/assets/photos/<景区 id>/<景点 id>.jpg`，在 meta 中以 Vite import 引入
 - 开启 3D 地形时，`overview.zoom` 不要低于 14（低缩放级别 maplibre 会压平俯仰角，详见 `AGENTS.md`）；高山景区 pitch 建议 ≤ 45（高差大时 pitch 60 的相机会被地形约束推走）
-- 徒步轨迹（可选）：把 GPX 交给 `node scripts/gpx-to-trail.mjs <轨迹文件> --out src/scenic/<id>/trail.ts --name "路线名" --var <景区名>Trail` 生成轨迹模块，meta 里配 `trails: [<trail>]` 即可常显；轨迹方向须与行进方向一致（不符加 `--reverse`）
+- 徒步轨迹（可选）：把轨迹原件（GPX / 两步路 KML / `[lng,lat][]` JSON，可传多个按序拼接做补段合并）交给 `node scripts/gpx-to-trail.mjs <轨迹文件...> --out src/scenic/<id>/trail.ts --name "路线名" --var <景区名>Trail` 生成轨迹模块，meta 里配 `trails: [<trail>]` 即可常显；轨迹方向须与行进方向一致（不符加 `--reverse`）
 - 地标白模：内置三种造型（`pagoda` / `slimTower` / `pavilion`）填坐标即用；全新造型走 `kind: 'glb'`（模型放 `public/models/`）
 - 完成后 `npm run build` 须零错误，并在浏览器走查：入口页 → 景区页 → 景点飞行 → 底图切换
 

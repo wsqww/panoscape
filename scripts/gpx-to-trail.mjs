@@ -1,12 +1,15 @@
 #!/usr/bin/env node
-// GPX/JSON 轨迹 → trail.ts 生成器（零依赖，Node >= 18）。
+// GPX/KML/JSON 轨迹 → trail.ts 生成器（零依赖，Node >= 18）。
 //
 // 用法：
-//   node scripts/gpx-to-trail.mjs <轨迹文件> [--name 名称] [--var 变量名] [--out 输出路径]
+//   node scripts/gpx-to-trail.mjs <轨迹文件...> [--name 名称] [--var 变量名] [--out 输出路径]
 //                                [--tolerance 米] [--max-points 数] [--reverse]
 //
-// 轨迹文件支持两种格式（按扩展名与内容自动识别）：
+// 轨迹文件支持三种格式（按扩展名与内容自动识别），可传多个、按给定顺序首尾拼接
+// （用于「补段 + 主轨迹」合并，如村道衔接段 + 实测主轨迹）：
 //   .gpx  — 标准 GPX，取 <trkpt> 序列（忽略 <ele>/<time> 等子元素）
+//   .kml  — KML，优先取 gx:Track 的 gx:coord 序列（两步路导出格式），
+//           回退多点的 <coordinates>（单点 Placemark 视为途径标记，跳过）
 //   .json — [lng, lat][] 裸数组（用于 OSM 等其他来源的临时轨迹走同一管线）
 //
 // 处理：Douglas–Peucker 简化（容差默认 20m，超上限时自动加倍容差）→ 坐标取 5 位小数
@@ -16,15 +19,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+/** 参数默认值集中定义：parseArgs 取默认、重建命令回显判断「非默认才输出」，两处引用同一常量防漂移 */
+const DEFAULT_TOLERANCE = 20;
+const DEFAULT_MAX_POINTS = 1500;
+
 /** 解析命令行参数：返回配置对象（含全部默认值） */
 function parseArgs(argv) {
   const config = {
-    input: null,
+    inputs: [], // 位置参数：一个或多个轨迹文件，按顺序拼接
     name: '徒步路线',
     varName: 'trail',
     out: null, // 输出路径必填：避免默认值硬编码导致新景区误覆盖其他景区的 trail.ts
-    tolerance: 20, // Douglas–Peucker 容差（米）
-    maxPoints: 1500, // 生成点数上限，超出则自动加大容差
+    tolerance: DEFAULT_TOLERANCE, // Douglas–Peucker 容差（米）
+    maxPoints: DEFAULT_MAX_POINTS, // 生成点数上限，超出则自动加大容差
     reverse: false, // 反转行进方向（GPX 为反方向记录时使用）
   };
   const args = argv.slice(2);
@@ -36,14 +43,14 @@ function parseArgs(argv) {
     else if (arg === '--tolerance') config.tolerance = Number(args[++i]);
     else if (arg === '--max-points') config.maxPoints = Number(args[++i]);
     else if (arg === '--reverse') config.reverse = true;
-    else if (!arg.startsWith('--')) config.input = arg;
+    else if (!arg.startsWith('--')) config.inputs.push(arg);
     else {
       console.error(`未知参数: ${arg}`);
       process.exit(1);
     }
   }
-  if (!config.input || !config.out) {
-    console.error('缺少轨迹文件路径或 --out 输出路径。用法：node scripts/gpx-to-trail.mjs <轨迹文件> --out src/scenic/<id>/trail.ts [选项]');
+  if (config.inputs.length === 0 || !config.out) {
+    console.error('缺少轨迹文件路径或 --out 输出路径。用法：node scripts/gpx-to-trail.mjs <轨迹文件...> --out src/scenic/<id>/trail.ts [选项]');
     process.exit(1);
   }
   return config;
@@ -121,12 +128,42 @@ function parseJsonTrack(text) {
   return coords;
 }
 
-/** 主流程：读文件 → 解析 → 简化 → 写 TS 模块 → 打印统计 */
+/** 从 KML 文本提取轨迹坐标 [lng, lat][]：优先 gx:Track 的 gx:coord 序列（两步路导出格式），
+ * 回退到含 ≥2 个点的 <coordinates> 块（单点块是途径标记 Placemark，跳过防污染）；无坐标时抛错 */
+function parseKml(text) {
+  const gxCoords = [...text.matchAll(/<gx:coord>([^<]+)<\/gx:coord>/g)]
+    .map((m) => m[1].trim().split(/\s+/).map(Number))
+    .filter((c) => c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]))
+    .map((c) => [c[0], c[1]]);
+  if (gxCoords.length > 0) return gxCoords;
+  const coords = [];
+  for (const block of text.matchAll(/<coordinates>([\s\S]*?)<\/coordinates>/g)) {
+    const pts = block[1]
+      .trim()
+      .split(/\s+/)
+      .map((s) => s.split(',').map(Number))
+      .filter((c) => c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]));
+    if (pts.length >= 2) coords.push(...pts.map((c) => [c[0], c[1]]));
+  }
+  if (coords.length === 0) throw new Error('KML 中未找到 gx:coord 或多点 <coordinates> 轨迹');
+  return coords;
+}
+
+/** 按扩展名与内容识别轨迹格式并解析为 [lng, lat][]；未知格式按 JSON 处理 */
+function parseTrack(text, input) {
+  if (/\.kml$/i.test(input) || text.includes('<kml')) return parseKml(text);
+  if (/\.gpx$/i.test(input) || text.includes('<trkpt')) return parseGpx(text);
+  return parseJsonTrack(text);
+}
+
+/** 主流程：读文件 → 解析（多输入按序拼接）→ 简化 → 写 TS 模块 → 打印统计 */
 function main() {
   const config = parseArgs(process.argv);
-  const text = fs.readFileSync(config.input, 'utf8');
-  const isGpx = /\.gpx$/i.test(config.input) || text.includes('<trkpt');
-  let coords = isGpx ? parseGpx(text) : parseJsonTrack(text);
+  let coords = [];
+  for (const input of config.inputs) {
+    const text = fs.readFileSync(input, 'utf8');
+    coords.push(...parseTrack(text, input));
+  }
   if (config.reverse) coords = coords.slice().reverse();
   const originalCount = coords.length;
 
@@ -149,12 +186,13 @@ function main() {
   const [endLng, endLat] = simplified[simplified.length - 1];
 
   // 回显完整重建命令（含全部非默认参数），保证照注释重跑能逐字节复现该文件
-  const rebuildCmd = `node scripts/gpx-to-trail.mjs ${path.basename(config.input)} --name "${config.name}" --var ${config.varName} --out ${config.out} --tolerance ${tolerance}${config.reverse ? ' --reverse' : ''}`;
+  const inputsArg = config.inputs.map((p) => path.basename(p)).join(' ');
+  const rebuildCmd = `node scripts/gpx-to-trail.mjs ${inputsArg} --name "${config.name}" --var ${config.varName} --out ${config.out} --tolerance ${tolerance}${config.maxPoints !== DEFAULT_MAX_POINTS ? ` --max-points ${config.maxPoints}` : ''}${config.reverse ? ' --reverse' : ''}`;
   const lines = simplified.map(([lng, lat]) => `    [${lng}, ${lat}],`).join('\n');
   const ts = `import type { HikeTrail } from '../../common/types';
 
 /**
- * ${config.name}：由实测轨迹经 scripts/gpx-to-trail.mjs 简化生成（${originalCount} → ${simplified.length} 点，容差 ${tolerance}m）。
+ * ${config.name}：由轨迹源（${inputsArg}）经 scripts/gpx-to-trail.mjs 简化生成（${originalCount} → ${simplified.length} 点，容差 ${tolerance}m）。
  * 勿手改坐标；数据更新请重跑：\`${rebuildCmd}\`
  */
 export const ${config.varName}: HikeTrail = {
