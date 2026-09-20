@@ -33,8 +33,8 @@ export const wugongshan: ScenicAreaMeta = {
   // bearing 105 把南北走向的路线横过来铺满宽屏；minZoom 12 实测无 DEM 告警
   overview: { zoom: 12.5, pitch: 0, bearing: 105 },
   minZoom: 12,
-  // 高差大（600m→1918m）：低空直飞会被地形约束推离目标，改用两段式飞行
-  twoPhaseFlight: true,
+  // 高差大（600m→1918m）：原生 flyTo 会被地形钳制打歪（落地偏移），启用手动路径飞行引擎
+  manualFlight: true,
   // 缩略图额外缩小（默认 -0.8）：南北 9km 的长路线在宽扁卡片里需更大偏移才完整入画
   previewZoomDelta: -2.2,
   // 龙山村反穿金顶实测轨迹（详见 trail.ts 生成说明）

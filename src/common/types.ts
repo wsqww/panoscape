@@ -73,9 +73,9 @@ export interface ScenicAreaMeta {
   minZoom?: number;
   /** 入口页缩略图相对全景的缩放偏移（可选，默认 -0.8）：长条形路线/景区可调小以完整入画 */
   previewZoomDelta?: number;
-  /** 两段式飞行（可选）：高差大的场景先高位推近目标区域再降到取景参数，
-   *  避免低空飞行路径被地形约束推离目标 */
-  twoPhaseFlight?: boolean;
+  /** 手动路径飞行（可选）：高差大的山地景区启用自研飞行引擎（直线航迹 + 显式平滑海拔 +
+   *  注视目的地朝向），规避地形钳制导致的落地偏移与上下颠簸；缺省用原生 flyTo */
+  manualFlight?: boolean;
   /** 景点清单，顺序即地图编号（01 起） */
   attractions: Attraction[];
   /** 徒步路线清单（可选）：在游览页地图上常显的轨迹折线 */

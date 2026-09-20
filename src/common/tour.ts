@@ -5,6 +5,8 @@ import { addLandmarkModels } from './landmarks';
 import { addTrails } from './trail';
 import { closePanoOverlay, isPanoOverlayOpen, openPanoOverlay } from './pano';
 import { BAIDU_MAP_AK } from './config';
+import type { FlightCamera } from './flight';
+import { bearingBetween, distanceMeters, flyPathFlight } from './flight';
 import type { Attraction, ScenicAreaMeta } from './types';
 import './base.css';
 import './tour.css';
@@ -18,30 +20,11 @@ const MIN_LOOK_DISTANCE_METERS = 400;
 /** 地图缩放超过该级别后自动展开全部标记名称 */
 const LABEL_MIN_ZOOM = 13.5;
 
-/** 飞行动画时长（毫秒） */
+/** 原生 flyTo 飞行动画时长（毫秒）：平缓景区（无高差钳制风险）直接使用 */
 const FLY_DURATION_MS = 3800;
 
-/** 计算从 from 指向 to 的罗盘方位角：等距圆柱平面近似，北为 0、东为 90，返回度数 */
-function bearingTo(from: [number, number], to: [number, number]): number {
-  const midLat = ((from[1] + to[1]) / 2) * (Math.PI / 180);
-  const dx = (to[0] - from[0]) * Math.cos(midLat);
-  const dy = to[1] - from[1];
-  if (dx === 0 && dy === 0) return 0;
-  return (Math.atan2(dx, dy) * 180) / Math.PI;
-}
-
-/** 粗略计算两点间距离（米）：平面近似，仅用于判断远近 */
-function distanceMeters(a: [number, number], b: [number, number]): number {
-  const midLat = ((a[1] + b[1]) / 2) * (Math.PI / 180);
-  const dx = (b[0] - a[0]) * Math.cos(midLat) * 111320;
-  const dy = (b[1] - a[1]) * 111320;
-  return Math.hypot(dx, dy);
-}
-
-/** 将方位角归一化到 [0, 360)，供接受负角度的相机使用前统一量纲 */
-function normalizeBearing(deg: number): number {
-  return ((deg % 360) + 360) % 360;
-}
+/** 手动路径飞行动画时长（毫秒）：3200ms 基础 + 每米 0.55ms，落在 [3200, 10000] 区间 */
+const FLIGHT_DURATION = { min: 3200, max: 10000, base: 3200, perMeter: 0.55 } as const;
 
 /** 底图切换控件：单 icon 按钮点击切换，外观与缩放按钮一致（参考高德地图「卫星」按钮） */
 class BaseLayerSwitchControl implements maplibregl.IControl {
@@ -109,7 +92,7 @@ function cameraForAttraction(meta: ScenicAreaMeta, attraction: Attraction): {
   if (bearing === undefined) {
     const distance = distanceMeters(attraction.lngLat, meta.center);
     bearing = distance >= MIN_LOOK_DISTANCE_METERS
-      ? normalizeBearing(bearingTo(attraction.lngLat, meta.center))
+      ? bearingBetween(attraction.lngLat, meta.center)
       : meta.overview.bearing;
   }
   return { center: attraction.lngLat, zoom, pitch, bearing };
@@ -205,9 +188,8 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     minZoom: meta.minZoom,
   });
 
-  /* 高程数据按需异步加载：用户手动操作会沿路径把高程瓦片"踩"出来，而程序化飞行
-     穿越未加载高程的区域会被地形约束推离目标（详见 AGENTS.md 已知坑 10）。
-     因此这里常驻监听用户交互（拖动/缩放/触摸），落地修正据此判断是否让位 */
+  /* 飞行引擎常驻监听用户交互（拖动/缩放/触摸）：飞行途中用户一动手立即中止动画，
+     把相机完整交还给用户（flightSeq 序号并发保护见 flyToAttraction） */
   let interacted = false;
   const markInteracted = (): void => { interacted = true; };
   map.on('mousedown', markInteracted);
@@ -265,10 +247,10 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     )
     .join('');
 
-  /* 高程数据按需异步加载：就绪前飞向高海拔点会被地形约束推离目标（详见 AGENTS.md 已知坑 10）。
-     就绪信号 = 首次 idle（地图完全静默，含高程瓦片全部加载完毕）+ 800ms 缓冲；
+  /* 高程数据按需异步加载：就绪前地形按平面渲染，此时起飞会看到地形在飞行途中隆起，
+     观感突兀。就绪信号 = 首次 idle（地图完全静默，含高程瓦片全部加载完毕）+ 800ms 缓冲；
      就绪前禁用景点交互（侧栏与标记变暗）。8 秒兜底强制放开——地形加载失败时
-     scene.ts 已降级为平面，不存在约束问题 */
+     scene.ts 已降级为平面，无地形可等 */
   root.classList.add('psc-notready');
   map.once('idle', () => {
     window.setTimeout(() => root.classList.remove('psc-notready'), 800);
@@ -308,80 +290,42 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     cardEl.classList.add('visible');
   }
 
-/** 飞行序号：连续快速切换景点时，仅让最后一次飞行的落地修正生效 */
+  /* 飞行序号：连续快速切换景点时，仅让最后一次飞行继续写相机 */
   let flightSeq = 0;
 
-  /** 平滑飞行到景点视角：两段式（高差大场景先高位推近、等高程就绪、再俯冲降落）或直飞，落地后按偏移量缓动归中 */
+  /**
+   * 平滑飞行到景点视角：高差大的景区（meta.manualFlight）走手动路径飞行引擎——
+   * 直线航迹 + 显式平滑海拔 + 注视目的地朝向，规避地形钳制导致的落地偏移与颠簸；
+   * 平缓景区直接用原生 flyTo（地图自带的丝滑缓动，无高差场景无钳制风险）。
+   */
   function flyToAttraction(attraction: Attraction): void {
     const camera = cameraForAttraction(meta, attraction);
     const seq = ++flightSeq;
     interacted = false;
-    /* 落地修正：偏移超过 80px 或 zoom 被约束压低超 0.3 时，easeTo 短促缓动滑回正中；
-       平缓场景偏移极小则不动作；用户已自行拖动/缩放（交互标志）或缓动进行中则跳过 */
-    const correct = (): void => {
-      if (seq !== flightSeq || interacted || map.isMoving()) return;
-      const moved = map.getCenter();
-      const nearTarget = Math.abs(moved.lng - attraction.lngLat[0]) < 0.02 && Math.abs(moved.lat - attraction.lngLat[1]) < 0.02;
-      if (!nearTarget) return;
-      /* 目标点 DEM 未就绪时地形约束会逐帧压制相机（zoom 被拉低、目标偏离中心），
-         此刻任何缓动都会被压回——等高程可查询后再归中，才能一次缓动到位 */
-      if (map.queryTerrainElevation(attraction.lngLat) == null) return;
-      const p = map.project(attraction.lngLat);
-      const offX = p.x - map.getCanvas().clientWidth / 2;
-      const offY = p.y - map.getCanvas().clientHeight / 2;
-      const zoomDeficit = camera.zoom - map.getZoom();
-      if (Math.max(Math.abs(offX), Math.abs(offY)) < 80 && zoomDeficit < 0.3) return;
-      /* jumpTo 瞬时重申是唯一可靠的归中方式（easeTo/flyTo 的动画路径会被约束逐帧压制）；
-         随后用地图容器反向平移过渡（画布与标记一起滑动），把瞬跳伪装成 700ms 的缓出滑移 */
-      map.jumpTo(camera);
-      const p2 = map.project(attraction.lngLat);
-      const dx = Math.round(p.x - p2.x);
-      const dy = Math.round(p.y - p2.y);
-      if (dx || dy) {
-        const host = map.getContainer();
-        host.style.transition = 'none';
-        host.style.transform = `translate(${dx}px, ${dy}px)`;
-        void host.offsetWidth;
-        host.style.transition = 'transform 700ms ease-out';
-        host.style.transform = 'translate(0px, 0px)';
-      }
-    };
-    const registerCorrection = (): void => {
-      map.once('moveend', correct);
-      map.once('idle', correct);
-    };
-    if (meta.twoPhaseFlight) {
-      /* 两段式：第一段高位（pitch 0）推近目标区域，沿程触发高程瓦片加载；
-         显式等目标点高程可查询（第一段已触发其加载）后，第二段再降到取景参数——
-         低空路径的高程已就绪，约束不会推离目标，一步缓动到位 */
-      map.flyTo({ center: attraction.lngLat, zoom: Math.min(camera.zoom, 13.6), pitch: 0, bearing: camera.bearing, duration: 1600, curve: 1.5, essential: true });
-      map.once('moveend', () => {
-        if (seq !== flightSeq || interacted) return;
-        /* 兜底：高程 10 秒仍不可查询（瓦片失败已降级平面 / 网络极慢）则放弃等待，
-           直接执行第二段——平面场景无地形约束，不会偏移卡死 */
-        const waitDem = window.setInterval(() => {
-          if (seq !== flightSeq || interacted) { window.clearInterval(waitDem); window.clearTimeout(giveUp); return; }
-          if (map.queryTerrainElevation(attraction.lngLat) != null) {
-            window.clearInterval(waitDem);
-            window.clearTimeout(giveUp);
-            map.flyTo({ ...camera, duration: 2200, curve: 1.5, essential: true });
-            registerCorrection();
-          }
-        }, 250);
-        const giveUp = window.setTimeout(() => {
-          if (seq !== flightSeq || interacted) return;
-          map.flyTo({ ...camera, duration: 2200, curve: 1.5, essential: true });
-          registerCorrection();
-        }, 10000);
+    if (meta.manualFlight) {
+      const c = map.getCenter();
+      const from: FlightCamera = {
+        center: [c.lng, c.lat],
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      };
+      flyPathFlight({
+        map,
+        from,
+        to: { center: attraction.lngLat, zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing },
+        durationMs: Math.min(
+          FLIGHT_DURATION.max,
+          Math.max(
+            FLIGHT_DURATION.min,
+            FLIGHT_DURATION.base + distanceMeters(from.center, attraction.lngLat) * FLIGHT_DURATION.perMeter
+          )
+        ),
+        shouldCancel: () => seq !== flightSeq || interacted,
       });
     } else {
       map.flyTo({ ...camera, duration: FLY_DURATION_MS, curve: 1.5, essential: true });
-      registerCorrection();
     }
-    /* 兜底复查窗：DEM 高程瓦片异步到货会反复触发约束重排，最终降落后 20 秒内
-       每 400ms 复查一次归中状态，收敛或用户已操作后自动空转 */
-    const settleTimer = window.setInterval(correct, 400);
-    window.setTimeout(() => window.clearInterval(settleTimer), 20000);
   }
   /** 移动端下选中景点后收起抽屉侧栏（桌面端无效果） */
   function closeSidebarOnMobile(): void {
