@@ -268,6 +268,11 @@
   cursor: zoom-in;
 }
 
+/* 无照片时 JS 会设 hidden 属性，但其 UA 样式会被上面的 display:block 覆盖，需显式归零占位 */
+.psc-card-photo[hidden] {
+  display: none;
+}
+
 /* ===== 景点照片大图预览（灯箱） ===== */
 .psc-lightbox {
   position: fixed;
