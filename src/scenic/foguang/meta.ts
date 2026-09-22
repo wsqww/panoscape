@@ -29,8 +29,6 @@ export const foguang: ScenicAreaMeta = {
   previewZoomDelta: -0.6,
   // 进入景区即显示卫星影像（乡村区域矢量底图信息稀少）
   baseLayer: 'satellite',
-  // 嵩山北麓高差大（谷底约 430m，嵩山主峰逾 1300m）：启用自研路径飞行引擎防地形钳制（见 AGENTS.md「路径飞行引擎」）
-  manualFlight: true,
   attractions: [
     /* ---- 自然村落（12）---- */
     {
