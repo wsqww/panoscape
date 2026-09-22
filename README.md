@@ -23,6 +23,7 @@ Pano（全景）+ Scape（山水之景）：全景 · 山水 · 一键入景。�
 - [x] 多景区工程架构（Vite + TypeScript 多页应用）
 - [x] 首个景区：西湖（16 处景点，坐标经 Overpass API 逐一核对）
 - [x] 第二个景区：武功山（龙山村反穿金顶徒步线：14 个途径点 + 全程 22.6km 轨迹（两步路 KML 实测 + OSM 村道补段），轨迹沿线实拍照片）
+- [x] 第三个景区：佛光村（嵩山北麓佛光峪：24 处标记按「自然村落 / 红色记忆 / 景点」分组——九龙角水库/大坝/溢洪道、十三无名烈士纪念碑、两处支队旧址、少林寺与周边诸峰；进景区默认卫星影像；实景照片与全景待补）
 - [x] 地标白模模型（three.js 程序化生成，支持 GLB 替换）
 - [x] 底图图层切换（标准 / 卫星）
 - [x] 景点 360° 实景全景（百度街景，需免费 AK，见下）
@@ -91,8 +92,10 @@ panoscape/
 ├── scenic/
 │   ├── westlake/
 │   │   └── index.html          # 西湖游览页（薄壳，只挂 #app 与脚本）
-│   └── wugongshan/
-│       └── index.html          # 武功山游览页（同上）
+│   ├── wugongshan/
+│   │   └── index.html          # 武功山游览页（同上）
+│   └── foguang/
+│       └── index.html          # 佛光村游览页（同上）
 ├── scripts/
 │   └── gpx-to-trail.mjs        # GPX/KML/JSON 轨迹 → trail.ts 生成器（零依赖，支持多输入拼接）
 ├── src/
@@ -114,9 +117,12 @@ panoscape/
 │   │   ├── westlake/
 │   │   │   ├── meta.ts         # 西湖景区数据（真实坐标/简介/视角/地标/照片）
 │   │   │   └── main.ts         # 页面装配（薄壳）
-│   │   └── wugongshan/
-│   │       ├── meta.ts         # 武功山景区数据（反穿途径点/轨迹/照片）
-│   │       ├── trail.ts        # 反穿轨迹折线（由 scripts/gpx-to-trail.mjs 生成，勿手改）
+│   │   ├── wugongshan/
+│   │   │   ├── meta.ts         # 武功山景区数据（反穿途径点/轨迹/照片）
+│   │   │   ├── trail.ts        # 反穿轨迹折线（由 scripts/gpx-to-trail.mjs 生成，勿手改）
+│   │   │   └── main.ts         # 页面装配（薄壳）
+│   │   └── foguang/
+│   │       ├── meta.ts         # 佛光村景区数据（佛光峪村落/水库设施/烈士墓/少林寺，照片与全景待补）
 │   │       └── main.ts         # 页面装配（薄壳）
 │   └── vite-env.d.ts
 ├── package.json
@@ -154,7 +160,7 @@ src/assets/photos/<景区 id>/<景点 id>.jpg
 
 - 地图数据 © [OpenStreetMap](https://www.openstreetmap.org/copyright) 贡献者（页面内由 MapLibre 版权控件展示）
 - 底图服务 [OpenFreeMap](https://openfreemap.org/)
-- 卫星影像 © Esri, Maxar, Earthstar Geographics（卫星模式，页面内展示）
+- 卫星影像 © Esri, Maxar, Earthstar Geographics；境内影像备用源/缩略图影像 © 国家地理信息公共服务平台 天地图（卫星模式与卫星缩略图，页面内展示）
 - 高程数据 © AWS Open Data（Mapzen Terrarium）
 - 360° 全景影像 © 百度地图（百度街景数据，经官方 JSAPI GL 全景组件调用，全景层内展示来源）；备选源 720 云全景漫游内容版权归原作品作者（`pano720` 配置处可注明）
 - 景点实景照片来自自由版权图库：西湖各点为 [Wikimedia Commons](https://commons.wikimedia.org/)（CC0 / CC BY / CC BY-SA 等，各文件页内有作者与协议信息）；武功山各点为「龙山村反穿」轨迹沿线实拍（两步路轨迹附件，作者自持版权）

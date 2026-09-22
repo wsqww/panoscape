@@ -42,6 +42,11 @@ class BaseLayerSwitchControl implements maplibregl.IControl {
   private mode: BaseLayerMode = 'standard';
   private button: HTMLButtonElement | null = null;
 
+  /** 构造时可指定初始底图模式（景区 meta 配置 satellite 时控件以高亮态出现） */
+  constructor(initialMode: BaseLayerMode = 'standard') {
+    this.mode = initialMode;
+  }
+
   /** 控件挂载：构建 icon 按钮并绑定切换事件 */
   onAdd(map: maplibregl.Map): HTMLElement {
     this.map = map;
@@ -54,6 +59,7 @@ class BaseLayerSwitchControl implements maplibregl.IControl {
     button.title = title;
     button.setAttribute('aria-label', title);
     button.innerHTML = BaseLayerSwitchControl.ICON;
+    button.classList.toggle('active', this.mode === 'satellite');
     button.addEventListener('click', () => this.toggle());
     container.appendChild(button);
     this.button = button;
@@ -186,6 +192,7 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
     pitch: meta.overview.pitch,
     bearing: meta.overview.bearing,
     minZoom: meta.minZoom,
+    baseLayer: meta.baseLayer,
   });
 
   /* 飞行引擎常驻监听用户交互（拖动/缩放/触摸）：飞行途中用户一动手立即中止动画，
@@ -199,7 +206,7 @@ export function mountTour(root: HTMLElement, meta: ScenicAreaMeta): void {
 
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
   map.addControl(new maplibregl.FullscreenControl(), 'top-right');
-  map.addControl(new BaseLayerSwitchControl(), 'top-right');
+  map.addControl(new BaseLayerSwitchControl(meta.baseLayer ?? 'standard'), 'top-right');
   map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-left');
   if (meta.landmarks?.length) {
     try {

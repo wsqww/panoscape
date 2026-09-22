@@ -102,6 +102,8 @@ export interface SceneOptions {
   minZoom?: number;
   /** 隐藏版权控件（入口页预览改用自定义 ⓘ 图标），默认 false */
   hideAttribution?: boolean;
+  /** 初始底图模式，默认 standard（矢量标准图）；satellite=卫星影像 */
+  baseLayer?: BaseLayerMode;
 }
 
 /** 在当前样式中探测主矢量瓦片源 ID（不同样式命名可能不同，运行时探测更稳） */
@@ -206,13 +208,14 @@ export function createScene(options: SceneOptions): maplibregl.Map {
     maxPitch = 75,
     minZoom = 13,
     hideAttribution = false,
+    baseLayer = 'standard',
   } = options;
   // 构造时只传 center/zoom，pitch/bearing 统一在样式就绪后应用：
   // 开启 3D 地形时 maplibre 会按缩放级别约束俯仰角（低 zoom 压平），
   // 相机参数在图层挂载完成后一次性 jumpTo，行为最稳定
   const map = new maplibregl.Map({
     container,
-    style: OPEN_FREEMAP_STYLE,
+    style: BASE_STYLES[baseLayer],
     center,
     zoom,
     maxPitch,

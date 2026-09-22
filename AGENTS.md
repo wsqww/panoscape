@@ -6,7 +6,7 @@
 ## 项目概述
 
 Panoscape（中文「境游」）：基于 MapLibre 3D 地图的可交互式景区游览演示（个人作品集）。
-多景区架构：入口页选择景区 → 进入对应景区的 3D 全景游览页，景点卡片可进入百度街景 360° 实景全景。当前已接入：西湖、武功山（龙山村反穿金顶徒步线，全程实测轨迹（两步路 KML）+ OSM 村道补段（龙山村→石堎上）+ 14 个途径点；标记按 OSM 权威节点放真实地理位置、不强制贴线，侧栏分组「龙山村反穿」+「索道下山」）。
+多景区架构：入口页选择景区 → 进入对应景区的 3D 全景游览页，景点卡片可进入百度街景 360° 实景全景。当前已接入：西湖、武功山（龙山村反穿金顶徒步线，全程实测轨迹（两步路 KML）+ OSM 村道补段（龙山村→石堎上）+ 14 个途径点；标记按 OSM 权威节点放真实地理位置、不强制贴线，侧栏分组「龙山村反穿」+「索道下山」）、佛光村（洛阳市偃师区府店镇佛光村，嵩山北麓佛光峪；24 处标记按需求方指定分组顺序排列：自然村落 12 + 红色记忆 3 + 景点 9，含九龙角水库/大坝/溢洪道、十三无名烈士纪念碑、两处支队旧址、少林寺与周边诸峰；`manualFlight: true` + `baseLayer: 'satellite'` 进景区默认卫星图；OSM 无村落覆盖，村级坐标取天地图地名库（CGCS2000≈WGS84），其余取高德注记 POI 经 GCJ-02→WGS-84 偏移改正 + 卫星影像目视比对，黄金大草原/五乳岭/五佛山为近似值待实地校正，数据来源明细见 `src/scenic/foguang/meta.ts` 头注）。
 
 ## 常用命令
 
@@ -35,7 +35,7 @@ npm run preview    # 本地预览 dist 产物
 - **新增景区流程**（4 个文件 + 文档同步 + 验证）：
   1. `scenic/<id>/index.html`：复制现有景区薄壳，改 3 处——`<title>`、`<meta name="description">`（景区专属文案）、`<script>` 指向 `../../src/scenic/<id>/main.ts`
   2. `src/scenic/<id>/main.ts`：装配薄壳（import 本景区 meta + `mountTour` 挂 `#app`）；漏建此文件或 script 仍指旧景区时，页面加载的还是旧景区数据
-  3. `src/scenic/<id>/meta.ts`：实现 `ScenicAreaMeta`（接口见 `src/common/types.ts`）；硬约束：带俯仰的 `overview.zoom` ≥ 14、俯瞰型 overview 用 pitch 0（地形 pitch 压平坑，见已知坑 1）、坐标一律 WGS-84；`attractions` 顺序即地图编号；`photo`/`landmarks`/`pano720`/`trails`/`minZoom`/`previewZoomDelta` 均可选，缺省时对应功能静默缺席不报错
+  3. `src/scenic/<id>/meta.ts`：实现 `ScenicAreaMeta`（接口见 `src/common/types.ts`）；硬约束：带俯仰的 `overview.zoom` ≥ 14、俯瞰型 overview 用 pitch 0（地形 pitch 压平坑，见已知坑 1）、坐标一律 WGS-84；`attractions` 顺序即地图编号；`photo`/`landmarks`/`pano720`/`trails`/`minZoom`/`previewZoomDelta`/`baseLayer` 均可选，缺省时对应功能静默缺席不报错（`baseLayer: 'satellite'` 使进景区默认显示卫星影像，缺省为矢量标准图，切换按钮初始态随之联动）
   4. `src/common/registry.ts`：加 import + `scenicAreas` 数组末尾追加（数组按接入时间先后排列，入口页倒序展示、最新景区排最前）；入口页卡片纯 registry 数据驱动，无需改入口页代码
   5. 文档同步：本文件「项目概述」的接入清单、README「当前状态」/「目录结构」
   6. 验证：`npm run build` 零错误 + 浏览器走查（入口页 → 景区页 → 景点飞行 → 底图切换 → 全景若已配），控制台无新告警

@@ -68,7 +68,7 @@ function renderHome(root: HTMLElement): void {
   `;
 }
 
-/** 在卡片内创建非交互的迷你 3D 地图预览（懒加载，进入视口才初始化） */
+/** 在卡片内创建非交互的迷你 3D 地图预览（懒加载，进入视口才初始化）；底图跟随景区 baseLayer 配置 */
 function mountPreview(host: HTMLElement, area: ScenicAreaMeta): void {
   const map = createScene({
     container: host,
@@ -82,6 +82,7 @@ function mountPreview(host: HTMLElement, area: ScenicAreaMeta): void {
     minZoom: 1,
     maxPitch: 60,
     hideAttribution: true,
+    baseLayer: area.baseLayer,
   });
   // 配置了徒步路线的景区，在预览中同步常显路线缩略
   if (area.trails?.length) addTrails(map, area.trails);
